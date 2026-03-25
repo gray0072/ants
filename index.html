@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ant Colony</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="site-header">
+    <h1>&#x1F41C; Ant Colony</h1>
+    <a id="github-link" href="https://github.com/gray0072/ants" target="_blank" rel="noopener noreferrer" title="View on GitHub">
+      <svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="currentColor">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+          0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
+          -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66
+          .07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15
+          -.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27
+          .68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12
+          .51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48
+          0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+      </svg>
+    </a>
+  </header>
+
+  <div id="layout">
+    <div id="canvas-wrapper">
+      <canvas id="game-canvas"></canvas>
+
+      <div id="intro-modal" class="hidden">
+        <div id="intro-modal-box">
+          <div id="intro-modal-title">&#x1F41C; Ant Colony</div>
+          <ul id="intro-modal-goals">
+            <li>Grow your colony to <strong>500 ants</strong></li>
+            <li>Survive waves of beetles and spiders</li>
+            <li>Protect the <strong>Queen</strong> at all costs</li>
+          </ul>
+          <div id="intro-modal-hint">
+            W/S/E/N — spawn ants &nbsp;·&nbsp; D — dig chamber &nbsp;·&nbsp; F — expand surface
+          </div>
+          <button id="intro-modal-ok">Start</button>
+          <div id="intro-modal-skip">or press any key</div>
+        </div>
+      </div>
+
+      <div id="modal" class="hidden">
+        <div id="modal-title">Defeat</div>
+        <div id="modal-msg">Your queen has fallen. The colony is lost.</div>
+        <button id="btn-restart">Restart</button>
+      </div>
+    </div>
+
+    <div id="hud">
+      <!-- Stats -->
+      <div class="hud-row">
+        <div class="hud-section">
+          <div class="hud-label">Food</div>
+          <div class="hud-value" id="ui-food">0</div>
+        </div>
+        <div class="hud-section">
+          <div class="hud-label">Population</div>
+          <div class="hud-value" id="ui-pop">0 / 0</div>
+        </div>
+      </div>
+
+      <div class="hud-row">
+        <div class="hud-section">
+          <div class="hud-label">Wave</div>
+          <div class="hud-value" id="ui-wave"><span id="ui-wave-num">0</span> <span style="font-size:0.7rem;color:#8a7a5a">(<span id="ui-wave-enemies">0</span> enemies)</span></div>
+        </div>
+        <div class="hud-section">
+          <div class="hud-label">Queen HP &nbsp;<span id="ui-queen-hp">200</span></div>
+          <div id="queen-hp-wrap"><div id="ui-queen-bar" style="width:100%"></div></div>
+        </div>
+      </div>
+
+      <div class="hud-section">
+        <div class="hud-label">Egg Queue</div>
+        <div id="egg-queue"></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="hud-section">
+        <div class="hud-label">Spawn</div>
+        <div class="btn-grid">
+          <button class="btn" id="btn-worker">
+            <span class="hotkey">W</span> Worker <span class="cost">&#x1F352; 15</span>
+          </button>
+          <button class="btn btn-danger" id="btn-soldier">
+            <span class="hotkey">S</span> Soldier <span class="cost">&#x1F352; 20</span>
+          </button>
+          <button class="btn" id="btn-scout">
+            <span class="hotkey">E</span> Scout <span class="cost">&#x1F352; 12</span>
+          </button>
+          <button class="btn" id="btn-nurse">
+            <span class="hotkey">N</span> Nurse <span class="cost">&#x1F352; 10</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="hud-section">
+        <div class="hud-label">Build</div>
+        <div class="btn-grid">
+          <div class="btn-cell">
+            <button class="btn" id="btn-chamber">
+              <span class="hotkey">D</span> Dig Chamber <span class="cost" id="chamber-cost">&#x1F352; 30</span>
+            </button>
+            <div class="btn-sub">Chambers: <span id="ui-chambers">1</span> / 25</div>
+          </div>
+          <div class="btn-cell">
+            <button class="btn" id="btn-expand">
+              <span class="hotkey">F</span> Expand Surface <span class="cost" id="expand-cost">&#x1F352; 50</span>
+            </button>
+            <div class="btn-sub">Surface: <span id="ui-surface">2</span> / 30</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="hud-section">
+        <div class="hud-label">Legend</div>
+        <div class="legend">
+          <div class="legend-row">
+            <div class="legend-dot" style="background:#cc44cc"></div>
+            <span>Queen</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-dot" style="background:#d4a96a"></div>
+            <span>Worker</span><span class="legend-count" id="cnt-worker">0</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-dot" style="background:#cc3333"></div>
+            <span>Soldier</span><span class="legend-count" id="cnt-soldier">0</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-dot" style="background:#e8d44d"></div>
+            <span>Scout</span><span class="legend-count" id="cnt-scout">0</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-dot" style="background:#7ec8e3"></div>
+            <span>Nurse</span><span class="legend-count" id="cnt-nurse">0</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-dot" style="background:#444455"></div>
+            <span>Beetle</span><span class="legend-count" id="cnt-beetle">0</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-dot" style="background:#882222"></div>
+            <span>Spider</span><span class="legend-count" id="cnt-spider">0</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-dot" style="background:#64c850; border-radius:0"></div> Food / Trail
+          </div>
+        </div>
+      </div>
+
+      <!-- Speed -->
+      <div class="hud-section">
+        <div class="hud-label">Speed</div>
+        <div id="speed-btns">
+          <button class="btn speed-btn" id="btn-pause" data-mult="0">⏸ <span class="hotkey">Spc</span></button>
+          <button class="btn speed-btn active" data-mult="1">1× <span class="hotkey">1</span></button>
+          <button class="btn speed-btn" data-mult="2">2× <span class="hotkey">2</span></button>
+          <button class="btn speed-btn" data-mult="4">4× <span class="hotkey">3</span></button>
+          <button class="btn speed-btn" data-mult="8">8× <span class="hotkey">4</span></button>
+        </div>
+      </div>
+
+      <!-- Win hint -->
+      <div class="hud-section">
+        <div class="hud-label">Goal</div>
+        <div style="font-size:0.68rem; color:#8a7a5a; line-height:1.6">
+          Reach <strong style="color:#e8c88a">500 ants</strong><br>
+          and clear all enemies
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load order matters: config → state → map → ant → ants/* → pheromone → enemy → colony → renderer → ui → main -->
+  <script type="module" src="./ts/config.ts"></script>
+  <script type="module" src="./ts/state.ts"></script>
+  <script type="module" src="./ts/map.ts"></script>
+  <script type="module" src="./ts/ant.ts"></script>
+  <script type="module" src="./ts/ants/worker.ts"></script>
+  <script type="module" src="./ts/ants/soldier.ts"></script>
+  <script type="module" src="./ts/ants/scout.ts"></script>
+  <script type="module" src="./ts/ants/queen.ts"></script>
+  <script type="module" src="./ts/ants/nurse.ts"></script>
+  <script type="module" src="./ts/pheromone.ts"></script>
+  <script type="module" src="./ts/enemy.ts"></script>
+  <script type="module" src="./ts/colony.ts"></script>
+  <script type="module" src="./ts/renderer.ts"></script>
+  <script type="module" src="./ts/ui.ts"></script>
+  <script type="module" src="./ts/main.ts"></script>
+</body>
+</html>
