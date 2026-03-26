@@ -1,5 +1,6 @@
 import { CONFIG } from './config';
-import { STATE, Ant, AntType, AntState, Enemy, QueenAnt, WorkerAnt, SoldierAnt, ScoutAnt, NurseAnt } from './state';
+import { STATE, Ant, AntType, AntState, Enemy, QueenAnt, WorkerAnt, SoldierAnt, ScoutAnt, NurseAnt, PrincessAnt } from './state';
+import { STATS } from './stats';
 
 type AntTypeMap = {
     worker: WorkerAnt;
@@ -7,6 +8,7 @@ type AntTypeMap = {
     scout: ScoutAnt;
     queen: QueenAnt;
     nurse: NurseAnt;
+    princess: PrincessAnt;
 };
 import { MapModule } from './map';
 import { FogModule } from './fog';
@@ -17,6 +19,7 @@ export { updateSoldier } from './ants/soldier';
 export { updateScout } from './ants/scout';
 export { updateQueen } from './ants/queen';
 export { updateNurse } from './ants/nurse';
+export { updatePrincess } from './ants/princess';
 export { freeEggsInQueenChamber } from './ants/queen';
 
 let _antId = 0;
@@ -28,6 +31,7 @@ export function createAnt<T extends AntType>(type: T, col: number, row: number):
         scout: { hp: CONFIG.SCOUT_HP, speed: CONFIG.SCOUT_SPEED, damage: CONFIG.WORKER_DAMAGE, reveal: CONFIG.SCOUT_REVEAL_RADIUS },
         queen: { hp: CONFIG.QUEEN_HP, speed: CONFIG.QUEEN_SPEED, damage: 0, reveal: 3 },
         nurse: { hp: CONFIG.NURSE_HP, speed: CONFIG.NURSE_SPEED, damage: 0, reveal: CONFIG.NURSE_REVEAL_RADIUS },
+        princess: { hp: CONFIG.PRINCESS_HP, speed: CONFIG.PRINCESS_SPEED, damage: 0, reveal: CONFIG.PRINCESS_REVEAL_RADIUS },
     };
 
     const c = cfg[type];
@@ -41,6 +45,8 @@ export function createAnt<T extends AntType>(type: T, col: number, row: number):
         initialState = 'forage';
     } else if (type === 'scout') {
         initialState = 'scout';
+    } else if (type === 'princess') {
+        initialState = 'wander';
     } else {
         initialState = 'patrol';
     }
@@ -68,9 +74,6 @@ export function createAnt<T extends AntType>(type: T, col: number, row: number):
         carriedEgg: null,
         targetedEgg: null,
         _carried: false,
-        stuckTimer: 0,
-        prevCol: col,
-        prevRow: row,
         wanderTimer: 0,
         angle: -Math.PI / 2,
         _lastRevealIdx: -1,
@@ -86,12 +89,15 @@ export function createAnt<T extends AntType>(type: T, col: number, row: number):
 export function nearestFood(ant: Ant): [number, number] | null {
     let best: [number, number] | null = null;
     let bestDist = Infinity;
+    const underground = Math.floor(ant.row) >= STATE.surfaceRows;
+    const refCol = underground ? STATE.nestCol + 0.5 : ant.col;
+    const refRow = underground ? STATE.surfaceRows - 0.5 : ant.row;
     for (const i of STATE.foodCells) {
         if (!STATE.fog || STATE.fog[i] <= 0) continue;
         const c = i % CONFIG.COLS;
         const r = (i / CONFIG.COLS) | 0;
         if (!MapModule.isPassable(c, r)) continue;
-        const d = dist(ant.col, ant.row, c + 0.5, r + 0.5);
+        const d = dist(refCol, refRow, c + 0.5, r + 0.5);
         if (d < bestDist) {
             bestDist = d;
             best = [c, r];
@@ -139,7 +145,9 @@ export function dist2(x0: number, y0: number, x1: number, y1: number): number {
     return (x1 - x0) ** 2 + (y1 - y0) ** 2;
 }
 
-export function stepToward(ant: Ant, tc: number, tr: number): boolean {
+type Mover = { col: number; row: number; speed: number; angle: number; path: [number, number][] };
+
+export function stepToward(ant: Mover, tc: number, tr: number): boolean {
     const dx = (tc + 0.5) - ant.col;
     const dy = (tr + 0.5) - ant.row;
     const d = Math.hypot(dx, dy);
@@ -150,7 +158,7 @@ export function stepToward(ant: Ant, tc: number, tr: number): boolean {
     return d < ant.speed + 0.1;
 }
 
-export function followPath(ant: Ant): boolean {
+export function followPath(ant: Mover): boolean {
     if (!ant.path || ant.path.length === 0) return true;
     const [tc, tr] = ant.path[ant.path.length - 1];
     if (stepToward(ant, tc, tr)) {
@@ -169,9 +177,11 @@ export function requestPath(ant: Ant, tc: number, tr: number): void {
     ant.targetRow = tr;
 }
 
-// On surface both ends are open — skip BFS and go straight
+// On surface both ends are open — skip BFS and go straight.
+// Underground → surface: BFS to tunnel exit, then straight to target.
 export function requestPathSmart(ant: Ant, tc: number, tr: number): void {
-    const antOnSurface = Math.floor(ant.row) < STATE.surfaceRows;
+    const antRow = Math.floor(ant.row);
+    const antOnSurface = antRow < STATE.surfaceRows;
     const tgtOnSurface = tr < STATE.surfaceRows;
     if (antOnSurface && tgtOnSurface) {
         ant.path = [[tc, tr]];
@@ -179,17 +189,36 @@ export function requestPathSmart(ant: Ant, tc: number, tr: number): void {
         ant.targetRow = tr;
         return;
     }
-    requestPath(ant, tc, tr);
-}
-
-export function depositPheromone(ant: Ant): void {
-    const c = Math.floor(ant.col);
-    const r = Math.floor(ant.row);
-    if (!STATE.inBounds(c, r)) return;
-    const i = STATE.idx(c, r);
-    if (STATE.pheromone) {
-        STATE.pheromone[i] = Math.min(1, STATE.pheromone[i] + CONFIG.PHER_DEPOSIT * 0.1);
+    const entryC = STATE.nestCol;
+    const entryR = STATE.surfaceRows - 1;
+    if (!antOnSurface && tgtOnSurface) {
+        // BFS underground to tunnel exit, then straight on surface to target
+        const bfsPath = MapModule.findPath(Math.floor(ant.col), antRow, entryC, entryR, MapModule.isPassable);
+        if (bfsPath) {
+            // bfsPath[last] = first step (popped first), bfsPath[0] = exit cell
+            // [tc, tr] at index 0 is consumed last — straight line from exit to target
+            ant.path = [[tc, tr], ...bfsPath];
+            ant.targetCol = tc;
+            ant.targetRow = tr;
+            return;
+        }
     }
+    if (antOnSurface && !tgtOnSurface) {
+        // Straight on surface to tunnel entrance, then BFS underground to target.
+        // Restrict BFS to underground cells only (r >= surfaceRows) so it never
+        // routes through surface cells and creates a zigzag.
+        const surf = STATE.surfaceRows;
+        const bfsPath = MapModule.findPath(entryC, entryR, tc, tr,
+            (c, r) => r >= surf && MapModule.isPassable(c, r));
+        if (bfsPath) {
+            // [entryC, entryR] at the end is consumed first — straight line from ant to entrance
+            ant.path = [...bfsPath, [entryC, entryR]];
+            ant.targetCol = tc;
+            ant.targetRow = tr;
+            return;
+        }
+    }
+    requestPath(ant, tc, tr);
 }
 
 export function reveal(ant: Ant): void {
@@ -215,6 +244,124 @@ export function wander(ant: Ant): void {
 }
 
 // ---------------------------------------------------------------------------
+// Flight guard — shared by soldier and worker
+// ---------------------------------------------------------------------------
+
+export function assignRingPosition(ant: WorkerAnt | SoldierAnt): void {
+    const exitCol = STATE.nestCol;
+    const exitRow = STATE.surfaceRows - 1;
+    const rMin = ant.type === 'worker' ? CONFIG.WORKER_RING_RADIUS_MIN : CONFIG.SOLDIER_RING_RADIUS_MIN;
+    const rMax = ant.type === 'worker' ? CONFIG.WORKER_RING_RADIUS_MAX : CONFIG.SOLDIER_RING_RADIUS_MAX;
+    const radius = rMin + Math.random() * (rMax - rMin);
+    const angle = -Math.PI + Math.random() * Math.PI; // upper semicircle
+    ant.targetCol = Math.max(0, Math.min(CONFIG.COLS - 1, Math.round(exitCol + Math.cos(angle) * radius)));
+    ant.targetRow = Math.max(0, Math.min(STATE.surfaceRows - 1, Math.round(exitRow + Math.sin(angle) * radius)));
+    ant.path = [];
+}
+
+/**
+ * Handles 'surface', 'fly', and 'chase' (during flight) states for any ant
+ * guarding the ring. Also intercepts any state when flightStarted and assigns
+ * ring position. Returns true if the state was handled (caller should return).
+ */
+export function updateFlightGuardStates(ant: WorkerAnt | SoldierAnt, attackRange: number, attackCooldownReset: number): boolean {
+    // Flight ended — release ants from guard duty back to normal states
+    if (!STATE.flightStarted && (ant.state === 'surface' || ant.state === 'fly')) {
+        if (ant.type === 'soldier') ant.state = 'patrol';
+        else ant.state = ant.carrying > 0 ? 'return' : 'forage';
+        ant.path = [];
+        ant.targetCol = null;
+        ant.targetRow = null;
+        return false;
+    }
+    if (ant.state === 'surface') {
+        const enemy = nearestVisibleEnemy(ant);
+        if (enemy && dist(ant.col, ant.row, enemy.col, enemy.row) <= CONFIG.FLIGHT_GUARD_CHASE_RADIUS) {
+            const d = dist(ant.col, ant.row, enemy.col, enemy.row);
+            if (d <= attackRange) {
+                if (ant.attackCooldown === 0) {
+                    enemy.hp -= ant.damage;
+                    ant.attackCooldown = attackCooldownReset;
+                }
+            } else {
+                requestPathSmart(ant, Math.floor(enemy.col), Math.floor(enemy.row));
+                followPath(ant);
+            }
+            return true;
+        }
+        if (ant.path.length === 0 && ant.targetCol !== null && ant.targetRow !== null) {
+            requestPathSmart(ant, ant.targetCol, ant.targetRow);
+        }
+        if (ant.path.length > 0) followPath(ant);
+        if (ant.targetCol !== null && ant.targetRow !== null
+            && dist(ant.col, ant.row, ant.targetCol + 0.5, ant.targetRow + 0.5) < 1.0) {
+            ant.path = [];
+            ant.state = 'fly';
+        }
+        return true;
+    }
+
+    if (ant.state === 'fly') {
+        const enemy = nearestVisibleEnemy(ant);
+        if (enemy && dist(ant.col, ant.row, enemy.col, enemy.row) <= CONFIG.FLIGHT_GUARD_CHASE_RADIUS) {
+            const d = dist(ant.col, ant.row, enemy.col, enemy.row);
+            if (d <= attackRange) {
+                if (ant.attackCooldown === 0) {
+                    enemy.hp -= ant.damage;
+                    ant.attackCooldown = attackCooldownReset;
+                }
+            } else {
+                ant.state = 'chase';
+                requestPathSmart(ant, Math.floor(enemy.col), Math.floor(enemy.row));
+                followPath(ant);
+            }
+            return true;
+        }
+        // Rotate in place, facing away from nest exit
+        const exitCol = STATE.nestCol + 0.5;
+        const exitRow = (STATE.surfaceRows - 1) + 0.5;
+        ant.angle = Math.atan2(exitRow - ant.row, exitCol - ant.col) + Math.PI
+            + Math.sin(STATE.tick * 0.015) * 0.6;
+        return true;
+    }
+
+    if (ant.state === 'chase' && STATE.flightStarted) {
+        // Give up chase if too far from ring position
+        if (ant.targetCol !== null && ant.targetRow !== null
+            && dist(ant.col, ant.row, ant.targetCol + 0.5, ant.targetRow + 0.5) > CONFIG.FLIGHT_GUARD_CHASE_RADIUS) {
+            ant.state = 'surface';
+            return true;
+        }
+        const enemy = nearestVisibleEnemy(ant);
+        if (enemy && dist(ant.col, ant.row, enemy.col, enemy.row) <= CONFIG.FLIGHT_GUARD_CHASE_RADIUS) {
+            const d = dist(ant.col, ant.row, enemy.col, enemy.row);
+            if (d <= attackRange) {
+                if (ant.attackCooldown === 0) {
+                    enemy.hp -= ant.damage;
+                    ant.attackCooldown = attackCooldownReset;
+                }
+            } else {
+                requestPathSmart(ant, Math.floor(enemy.col), Math.floor(enemy.row));
+                followPath(ant);
+            }
+            return true;
+        }
+        // Enemy gone or out of range — pick new ring spot and return
+        assignRingPosition(ant);
+        ant.state = 'surface';
+        return true;
+    }
+
+    if (STATE.flightStarted) {
+        assignRingPosition(ant);
+        ant.state = 'surface';
+        return true;
+    }
+
+    return false;
+}
+
+// ---------------------------------------------------------------------------
 // Ant Module
 // ---------------------------------------------------------------------------
 
@@ -229,6 +376,7 @@ function updateLifestage(ant: Ant): void {
         ant.lifestageTick = CONFIG.PUPA_TICKS;
     } else if (ant.lifestage === 'pupa') {
         ant.lifestage = null; // hatched
+        STATS.totalAntsProduced++;
     }
 }
 
@@ -244,6 +392,7 @@ import { updateSoldier } from './ants/soldier';
 import { updateScout } from './ants/scout';
 import { updateQueen } from './ants/queen';
 import { updateNurse } from './ants/nurse';
+import { updatePrincess } from './ants/princess';
 
 export const AntModule = {
     update(): void {
@@ -256,6 +405,7 @@ export const AntModule = {
                 case 'scout': updateScout(ant); break;
                 case 'queen': updateQueen(ant); break;
                 case 'nurse': updateNurse(ant); break;
+                case 'princess': updatePrincess(ant); break;
             }
         }
 
@@ -264,10 +414,18 @@ export const AntModule = {
         let i = STATE.ants.length;
         while (i--) {
             const a = STATE.ants[i];
-            if (a.hp <= 0) { STATE.ants.splice(i, 1); continue; }
+            if (a.hp <= 0) {
+                if (STATE.flightStarted && a.type === 'princess' && a.lifestage === null
+                        && (a.state === 'fly' || a.state === 'surface' || a.state === 'prepare')) {
+                    STATE.flightEscaped++;
+                }
+                STATE.ants.splice(i, 1);
+                continue;
+            }
             if (a.type === 'queen') queen = a as QueenAnt;
         }
         STATE.queen = queen;
+        if (STATE.ants.length > STATS.maxAnts) STATS.maxAnts = STATE.ants.length;
         if (!STATE.queen) { endGame(false); return; }
         STATE.queenHp = STATE.queen.hp;
     },

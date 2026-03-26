@@ -1,6 +1,6 @@
 import { CONFIG } from './config';
 import { STATE } from './state';
-import { Renderer } from './renderer_pixi';
+import { Renderer } from './render';
 
 const CELL  = CONFIG.CELL;
 const MAP_W = CONFIG.COLS * CELL;

@@ -1,5 +1,6 @@
 import { CONFIG } from './config';
-import { STATE, Ant, AntType, EggOrder } from './state';
+import { STATE, AntType } from './state';
+import { startFlight as princessStartFlight } from './ants/princess';
 import { FogModule } from './fog';
 import { createAnt } from './ant';
 import { MapModule } from './map';
@@ -18,9 +19,18 @@ function randomSpawnPos(): { c: number; r: number } {
     };
 }
 
+function canSpawnPrincess(): boolean {
+    const maxChambers = CONFIG.CHAMBER_FLOORS * CONFIG.CHAMBERS_PER_FLOOR + 1;
+    if (STATE.chambers < maxChambers) return false;
+    if (STATE.surfaceRows < CONFIG.SURFACE_ROWS_MAX) return false;
+    const count = STATE.ants.filter(a => a.type === 'princess').length
+        + (STATE.queen?.eggQueue ?? []).filter(o => o === 'princess').length;
+    return count < CONFIG.PRINCESS_LIMIT;
+}
+
 function canSpawnNurse(): boolean {
     const nurseCount = STATE.ants.filter(a => a.type === 'nurse').length
-        + (STATE.queen?.eggQueue ?? []).filter(o => o.type === 'nurse').length;
+        + (STATE.queen?.eggQueue ?? []).filter(o => o === 'nurse').length;
     return nurseCount < STATE.chamberPositions.length - 1;
 }
 
@@ -78,16 +88,23 @@ export const ColonyModule = {
     orderAnt(type: AntType): boolean {
         const pending = (STATE.queen?.eggQueue ?? []).length;
         if (STATE.ants.length + pending >= STATE.popCap()) return false;
-        const cost = { worker: CONFIG.COST_WORKER, soldier: CONFIG.COST_SOLDIER, scout: CONFIG.COST_SCOUT, nurse: CONFIG.COST_NURSE }[type];
-        if (cost == null || STATE.food < cost) return false;
+        const cost: Partial<Record<AntType, number>> = {
+            worker: CONFIG.COST_WORKER,
+            soldier: CONFIG.COST_SOLDIER,
+            scout: CONFIG.COST_SCOUT,
+            nurse: CONFIG.COST_NURSE,
+            princess: CONFIG.COST_PRINCESS,
+        };
+        const c = cost[type];
+        if (c == null || STATE.food < c) return false;
         if (type === 'nurse' && !canSpawnNurse()) return false;
+        if (type === 'princess' && !canSpawnPrincess()) return false;
+
         if (!STATE.queen) return false;
         const queen = STATE.queen;
 
-        const queue = queen.eggQueue!;
-
-        STATE.food -= cost;
-        queue.push({ type });
+        STATE.food -= c;
+        queen.eggQueue!.push(type);
         return true;
     },
 
@@ -144,8 +161,16 @@ export const ColonyModule = {
         return getChamberSlot(STATE.chambers + 1) !== null;
     },
 
+    startFlight(): boolean {
+        return princessStartFlight();
+    },
+
     canSpawnNurse(): boolean {
         return canSpawnNurse();
+    },
+
+    canSpawnPrincess(): boolean {
+        return canSpawnPrincess();
     },
 
     initPerfDebug(): void {
@@ -180,6 +205,9 @@ export const ColonyModule = {
         for (let i = 0; i < 10; i++)
             STATE.ants.push(createAnt('scout', nc, nr));
 
+        for (let i = 0; i < CONFIG.PRINCESS_LIMIT; i++)
+            STATE.ants.push(createAnt('princess', nc, nr));
+
         STATE.wave = 50;
     },
 
@@ -194,11 +222,22 @@ export const ColonyModule = {
             if (STATE.food < 0) STATE.food = 0;
         }
 
-        // Win condition
-        if (antCount >= CONFIG.WIN_POPULATION && STATE.enemies.length === 0) {
-            STATE.over = true;
-            STATE.won = true;
-            STATE.running = false;
+        // Flight completion: all princesses have flown away or been killed
+        const stillInFlight = STATE.flightStarted && STATE.ants.some(
+            a => a.type === 'princess' && a.lifestage === null
+                && (a.state === 'fly' || a.state === 'surface' || a.state === 'prepare')
+        );
+        if (STATE.flightStarted && STATE.flightTotal > 0
+            && (STATE.flightEscaped >= STATE.flightTotal || !stillInFlight)) {
+            STATE.completedFlights++;
+            STATE.flightStarted = false;
+            STATE.flightEscaped = 0;
+            STATE.flightTotal = 0;
+            if (!STATE.survival) {
+                STATE.over = true;
+                STATE.won = true;
+                STATE.running = false;
+            }
         }
     },
 };

@@ -4,11 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ant Colony</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header id="site-header">
-    <h1>&#x1F41C; Ant Colony</h1>
+    <h1 data-i18n="title">🐜 Ant Colony</h1>
+    <span id="difficulty-badge">🌱 Easy</span>
+    <button id="lang-btn" title="Language">EN</button>
     <a id="github-link" href="https://github.com/gray0072/ants" target="_blank" rel="noopener noreferrer" title="View on GitHub">
       <svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="currentColor">
         <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
@@ -29,24 +32,52 @@
 
       <div id="intro-modal" class="hidden">
         <div id="intro-modal-box">
-          <div id="intro-modal-title">&#x1F41C; Ant Colony</div>
+          <div id="intro-modal-title" data-i18n="title">🐜 Ant Colony</div>
           <ul id="intro-modal-goals">
-            <li>Grow your colony to <strong>500 ants</strong></li>
-            <li>Survive waves of beetles and spiders</li>
-            <li>Protect the <strong>Queen</strong> at all costs</li>
+            <li data-i18n-html="intro_goal1">Dig <strong>25 chambers</strong> underground</li>
+            <li id="intro-goal2">Raise <strong>20 princesses</strong></li>
+            <li data-i18n-html="intro_goal3">Launch the <strong>princess flight</strong></li>
           </ul>
-          <div id="intro-modal-hint">
+          <div id="difficulty-selector">
+            <button class="diff-btn" data-diff="easy">
+              <span class="hotkey diff-hotkey">1</span>
+              <span class="diff-icon">🌱</span>
+              <span class="diff-name" data-i18n="diff_easy">Easy</span>
+            </button>
+            <button class="diff-btn" data-diff="medium">
+              <span class="hotkey diff-hotkey">2</span>
+              <span class="diff-icon">⚔️</span>
+              <span class="diff-name" data-i18n="diff_medium">Medium</span>
+            </button>
+            <button class="diff-btn" data-diff="hard">
+              <span class="hotkey diff-hotkey">3</span>
+              <span class="diff-icon">💀</span>
+              <span class="diff-name" data-i18n="diff_hard">Hard</span>
+            </button>
+          </div>
+          <div id="difficulty-desc">300 food · 20 princesses · enemy ×1.03</div>
+          <div id="intro-modal-hint" data-i18n-html="intro_hint">
             W/S/E/N — spawn ants &nbsp;·&nbsp; D — dig chamber &nbsp;·&nbsp; F — expand surface
           </div>
-          <button id="intro-modal-ok">Start</button>
-          <div id="intro-modal-skip">or press any key</div>
+          <div id="intro-modal-hint-shift" data-i18n="intro_hint_shift">Shift+click any button to toggle auto-mode</div>
+          <button id="intro-modal-ok" data-i18n="intro_start">Start</button>
+          <div id="intro-modal-skip" data-i18n="intro_skip">Space / Enter to start</div>
         </div>
       </div>
 
       <div id="modal" class="hidden">
         <div id="modal-title">Defeat</div>
-        <div id="modal-msg">Your queen has fallen. The colony is lost.</div>
-        <button id="btn-restart">Restart</button>
+        <div id="modal-msg">Your queen has fallen.</div>
+        <div id="modal-stats" class="hidden">
+          <div class="stat-row"><span class="stat-label" data-i18n="stats_max_ants">Peak population</span><span id="stat-max-ants" class="stat-val">0</span></div>
+          <div class="stat-row"><span class="stat-label" data-i18n="stats_produced">Ants raised</span><span id="stat-produced" class="stat-val">0</span></div>
+          <div class="stat-row"><span class="stat-label" data-i18n="stats_food">Food gathered</span><span id="stat-food" class="stat-val">0</span></div>
+          <div class="stat-row"><span class="stat-label" data-i18n="stats_kills">Enemies defeated</span><span id="stat-kills" class="stat-val">0</span></div>
+          <div class="stat-row"><span class="stat-label" data-i18n="stats_princesses">Princesses flown</span><span id="stat-princesses" class="stat-val">0</span></div>
+          <div class="stat-row"><span class="stat-label" data-i18n="stats_stars">Flights completed</span><span id="stat-stars" class="stat-val">0</span></div>
+        </div>
+        <button id="btn-survival" class="hidden" data-i18n="modal_survival">Continue (Survival)</button>
+        <button id="btn-restart" data-i18n="modal_restart">Restart</button>
       </div>
     </div>
 
@@ -54,132 +85,158 @@
       <!-- Stats -->
       <div class="hud-row">
         <div class="hud-section">
-          <div class="hud-label">Food</div>
+          <div class="hud-label" data-i18n="hud_food">Food</div>
           <div class="hud-value" id="ui-food">0</div>
         </div>
         <div class="hud-section">
-          <div class="hud-label">Population</div>
+          <div class="hud-label" data-i18n="hud_pop">Population</div>
           <div class="hud-value" id="ui-pop">0 / 0</div>
         </div>
       </div>
 
       <div class="hud-row">
         <div class="hud-section">
-          <div class="hud-label">Wave</div>
-          <div class="hud-value" id="ui-wave"><span id="ui-wave-num">0</span> <span style="font-size:0.7rem;color:#8a7a5a">(<span id="ui-wave-enemies">0</span> enemies)</span></div>
+          <div class="hud-label" data-i18n="hud_wave">Wave</div>
+          <div class="hud-value" id="ui-wave"><span id="ui-wave-num">0</span> <span style="font-size:0.7rem;color:#8a7a5a">(<span id="ui-wave-enemies">0</span> <span data-i18n="enemies">enemies</span>)</span></div>
         </div>
         <div class="hud-section">
-          <div class="hud-label">Queen HP &nbsp;<span id="ui-queen-hp">200</span></div>
+          <div class="hud-label"><span data-i18n="hud_queen_hp">Queen HP</span> &nbsp;<span id="ui-queen-hp">200</span></div>
           <div id="queen-hp-wrap"><div id="ui-queen-bar" style="width:100%"></div></div>
         </div>
       </div>
 
       <div class="hud-section">
-        <div class="hud-label">Egg Queue</div>
+        <div class="hud-label" data-i18n="hud_egg_queue">Egg Queue</div>
         <div id="egg-queue"></div>
       </div>
 
       <!-- Actions -->
       <div class="hud-section">
-        <div class="hud-label">Spawn</div>
-        <div class="btn-grid">
-          <button class="btn" id="btn-worker">
-            <span class="hotkey">W</span> Worker <span class="cost">&#x1F352; 15</span>
+        <div class="hud-label" data-i18n="hud_spawn">Spawn</div>
+        <div class="spawn-list">
+          <button class="btn spawn-btn" id="btn-worker">
+            <span class="spawn-left"><span class="spawn-dot" style="background:#d4a96a"></span><span class="hotkey">W</span><span class="spawn-name" data-i18n="btn_worker">Worker</span></span>
+            <span class="spawn-count" id="cnt-worker">0</span>
+            <span class="spawn-right"><span class="spawn-auto">⟳</span><span class="cost">&#x1F352; 15</span></span>
           </button>
-          <button class="btn btn-danger" id="btn-soldier">
-            <span class="hotkey">S</span> Soldier <span class="cost">&#x1F352; 20</span>
+          <button class="btn spawn-btn" id="btn-soldier">
+            <span class="spawn-left"><span class="spawn-dot" style="background:#cc3333"></span><span class="hotkey">S</span><span class="spawn-name" data-i18n="btn_soldier">Soldier</span></span>
+            <span class="spawn-count" id="cnt-soldier">0</span>
+            <span class="spawn-right"><span class="spawn-auto">⟳</span><span class="cost">&#x1F352; 20</span></span>
           </button>
-          <button class="btn" id="btn-scout">
-            <span class="hotkey">E</span> Scout <span class="cost">&#x1F352; 12</span>
+          <button class="btn spawn-btn" id="btn-scout">
+            <span class="spawn-left"><span class="spawn-dot" style="background:#e8d44d"></span><span class="hotkey">E</span><span class="spawn-name" data-i18n="btn_scout">Scout</span></span>
+            <span class="spawn-count" id="cnt-scout">0</span>
+            <span class="spawn-right"><span class="spawn-auto">⟳</span><span class="cost">&#x1F352; 12</span></span>
           </button>
-          <button class="btn" id="btn-nurse">
-            <span class="hotkey">N</span> Nurse <span class="cost">&#x1F352; 10</span>
+          <button class="btn spawn-btn" id="btn-nurse">
+            <span class="spawn-left"><span class="spawn-dot" style="background:#7ec8e3"></span><span class="hotkey">D</span><span class="spawn-name" data-i18n="btn_nurse">Nurse</span></span>
+            <span class="spawn-count" id="cnt-nurse">0</span>
+            <span class="spawn-right"><span class="spawn-auto">⟳</span><span class="cost">&#x1F352; 10</span></span>
+          </button>
+          <button class="btn spawn-btn" id="btn-princess">
+            <span class="spawn-left"><span class="spawn-dot" style="background:#cc44cc"></span><span class="hotkey">Q</span><span class="spawn-name" data-i18n="btn_princess">Princess</span></span>
+            <span class="spawn-count" id="cnt-princess">0</span>
+            <span class="spawn-right"><span class="spawn-auto">⟳</span><span class="cost">&#x1F352; 100</span></span>
           </button>
         </div>
       </div>
 
       <div class="hud-section">
-        <div class="hud-label">Build</div>
+        <div class="hud-label" data-i18n="hud_build">Build</div>
         <div class="btn-grid">
           <div class="btn-cell">
             <button class="btn" id="btn-chamber">
-              <span class="hotkey">D</span> Dig Chamber <span class="cost" id="chamber-cost">&#x1F352; 30</span>
+              <span class="hotkey">R</span> <span data-i18n="btn_chamber">Dig Chamber</span> <span class="cost" id="chamber-cost">&#x1F352; 30</span> <span class="spawn-auto">⟳</span>
             </button>
-            <div class="btn-sub">Chambers: <span id="ui-chambers">1</span> / 25</div>
+            <div class="btn-sub"><span data-i18n="chambers_label">Chambers:</span> <span id="ui-chambers">1</span> / 25</div>
           </div>
           <div class="btn-cell">
             <button class="btn" id="btn-expand">
-              <span class="hotkey">F</span> Expand Surface <span class="cost" id="expand-cost">&#x1F352; 50</span>
+              <span class="hotkey">F</span> <span data-i18n="btn_expand">Expand Surface</span> <span class="cost" id="expand-cost">&#x1F352; 50</span> <span class="spawn-auto">⟳</span>
             </button>
-            <div class="btn-sub">Surface: <span id="ui-surface">2</span> / 30</div>
+            <div class="btn-sub"><span data-i18n="surface_label">Surface:</span> <span id="ui-surface">2</span> / 30</div>
           </div>
         </div>
       </div>
 
       <!-- Legend -->
       <div class="hud-section">
-        <div class="hud-label">Legend</div>
+        <div class="hud-label" data-i18n="hud_legend">Legend</div>
         <div class="legend">
-          <div class="legend-row">
-            <div class="legend-dot" style="background:#cc44cc"></div>
-            <span>Queen</span>
+          <div class="legend-col">
+            <div class="legend-row">
+              <div class="legend-dot" style="background:#cc44cc"></div>
+              <span data-i18n="leg_queen">Queen</span>
+            </div>
+            <div class="legend-row">
+              <div class="legend-dot" style="background:#64c850"></div>
+              <span data-i18n="leg_food">Food / Trail</span>
+            </div>
           </div>
-          <div class="legend-row">
-            <div class="legend-dot" style="background:#d4a96a"></div>
-            <span>Worker</span><span class="legend-count" id="cnt-worker">0</span>
-          </div>
-          <div class="legend-row">
-            <div class="legend-dot" style="background:#cc3333"></div>
-            <span>Soldier</span><span class="legend-count" id="cnt-soldier">0</span>
-          </div>
-          <div class="legend-row">
-            <div class="legend-dot" style="background:#e8d44d"></div>
-            <span>Scout</span><span class="legend-count" id="cnt-scout">0</span>
-          </div>
-          <div class="legend-row">
-            <div class="legend-dot" style="background:#7ec8e3"></div>
-            <span>Nurse</span><span class="legend-count" id="cnt-nurse">0</span>
-          </div>
-          <div class="legend-row">
-            <div class="legend-dot" style="background:#444455"></div>
-            <span>Beetle</span><span class="legend-count" id="cnt-beetle">0</span>
-          </div>
-          <div class="legend-row">
-            <div class="legend-dot" style="background:#882222"></div>
-            <span>Spider</span><span class="legend-count" id="cnt-spider">0</span>
-          </div>
-          <div class="legend-row">
-            <div class="legend-dot" style="background:#64c850; border-radius:0"></div> Food / Trail
+          <div class="legend-col">
+            <div class="legend-row">
+              <div class="legend-dot" style="background:#444455"></div>
+              <span data-i18n="leg_beetle">Beetle</span>
+            </div>
+            <div class="legend-row">
+              <div class="legend-dot" style="background:#882222"></div>
+              <span data-i18n="leg_spider">Spider</span>
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- Goals -->
+      <div class="hud-section">
+        <div class="hud-label" data-i18n="hud_goals">Goals</div>
+        <div class="goals-list">
+          <div class="goal-row">
+            <span class="goal-check" id="goal-check-queen">☐</span>
+            <span data-i18n="goal_queen">Save the Queen</span>
+          </div>
+          <div class="goal-row">
+            <span class="goal-check" id="goal-check-chambers">☐</span>
+            <span data-i18n="goal_chambers">Dig 25 chambers</span>
+            <span class="goal-progress" id="goal-prog-chambers">1/25</span>
+          </div>
+          <div class="goal-row">
+            <span class="goal-check" id="goal-check-surface">☐</span>
+            <span data-i18n="goal_surface">Expand full surface</span>
+            <span class="goal-progress" id="goal-prog-surface">3/30</span>
+          </div>
+          <div class="goal-row">
+            <span class="goal-check" id="goal-check-princesses">☐</span>
+            <span id="goal-princesses-label">Raise 20 princesses</span>
+            <span class="goal-progress" id="goal-prog-princesses">0/20</span>
+          </div>
+          <div class="goal-row goal-row-flight">
+            <span class="goal-check" id="goal-check-flight">☐</span>
+            <span data-i18n="goal_flight">Start the flight</span>
+            <span class="goal-progress" id="goal-prog-flight" style="display:none">0/0</span>
+            <button id="btn-start-flight" class="btn btn-flight btn-disabled"><span class="hotkey">A</span> <span data-i18n="btn_start_flight">Start Flight</span> <span class="spawn-auto">⟳</span></button>
+          </div>
+        <div id="flight-stars" style="display:none"></div>
+      </div>
+    </div>
 
       <!-- Speed -->
       <div class="hud-section">
-        <div class="hud-label">Speed</div>
+        <div class="hud-label" data-i18n="hud_speed">Speed</div>
         <div id="speed-btns">
-          <button class="btn speed-btn" id="btn-pause" data-mult="0">⏸ <span class="hotkey">Spc</span></button>
-          <button class="btn speed-btn active" data-mult="1">1× <span class="hotkey">1</span></button>
-          <button class="btn speed-btn" data-mult="2">2× <span class="hotkey">2</span></button>
-          <button class="btn speed-btn" data-mult="4">4× <span class="hotkey">3</span></button>
-          <button class="btn speed-btn" data-mult="8">8× <span class="hotkey">4</span></button>
+          <button class="btn speed-btn" id="btn-pause" data-mult="0"><span class="hotkey">Spc</span> ⏸</button>
+          <button class="btn speed-btn active" data-mult="1"><span class="hotkey">1</span> 1×</button>
+          <button class="btn speed-btn" data-mult="2"><span class="hotkey">2</span> 2×</button>
+          <button class="btn speed-btn" data-mult="4"><span class="hotkey">3</span> 4×</button>
+          <button class="btn speed-btn" data-mult="8"><span class="hotkey">4</span> 8×</button>
         </div>
       </div>
-
-      <!-- Win hint -->
-      <div class="hud-section">
-        <div class="hud-label">Goal</div>
-        <div style="font-size:0.68rem; color:#8a7a5a; line-height:1.6">
-          Reach <strong style="color:#e8c88a">500 ants</strong><br>
-          and clear all enemies
-        </div>
-      </div>
-    </div>
   </div>
 
-  <!-- Load order matters: config → state → map → ant → ants/* → pheromone → enemy → colony → renderer → ui → main -->
+  <!-- Load order matters: config → difficulty → state → map → ant → ants/* → enemy → colony → renderer → ui → main -->
   <script type="module" src="./ts/config.ts"></script>
   <script type="module" src="./ts/state.ts"></script>
+  <script type="module" src="./ts/stats.ts"></script>
   <script type="module" src="./ts/map.ts"></script>
   <script type="module" src="./ts/ant.ts"></script>
   <script type="module" src="./ts/ants/worker.ts"></script>
@@ -187,10 +244,9 @@
   <script type="module" src="./ts/ants/scout.ts"></script>
   <script type="module" src="./ts/ants/queen.ts"></script>
   <script type="module" src="./ts/ants/nurse.ts"></script>
-  <script type="module" src="./ts/pheromone.ts"></script>
+  <script type="module" src="./ts/ants/princess.ts"></script>
   <script type="module" src="./ts/enemy.ts"></script>
   <script type="module" src="./ts/colony.ts"></script>
-  <script type="module" src="./ts/renderer.ts"></script>
   <script type="module" src="./ts/ui.ts"></script>
   <script type="module" src="./ts/main.ts"></script>
 </body>

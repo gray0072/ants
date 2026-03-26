@@ -1,21 +1,24 @@
 import { CONFIG } from '../config';
-import { STATE, Ant } from '../state';
-import { nearestFood, nearestVisibleEnemy, requestPath, requestPathSmart, followPath, depositPheromone, reveal, wander, dist } from '../ant';
+import { STATE, WorkerAnt } from '../state';
+import { STATS } from '../stats';
+import { nearestFood, nearestVisibleEnemy, requestPath, requestPathSmart, followPath, updateFlightGuardStates, reveal, wander, dist } from '../ant';
 
-export function updateWorker(ant: Ant): void {
+export function updateWorker(ant: WorkerAnt): void {
     reveal(ant);
     if (ant.attackCooldown > 0) ant.attackCooldown--;
 
+    if (updateFlightGuardStates(ant, CONFIG.WORKER_ATTACK_RANGE, CONFIG.WORKER_ATTACK_COOLDOWN)) return;
+
     // Flee if enemy within radius 4 — run to queen
     const threat = nearestVisibleEnemy(ant);
-    if (ant.state !== 'flee' && threat && dist(ant.col, ant.row, threat.col, threat.row) <= 4) {
+    if (ant.state !== 'flee' && threat && dist(ant.col, ant.row, threat.col, threat.row) <= CONFIG.WORKER_FLEE_RADIUS) {
         ant.state = 'flee';
         ant.path = [];
     }
 
     if (ant.state === 'flee') {
         // No threats left → resume work
-        if (!threat || dist(ant.col, ant.row, threat.col, threat.row) > 5) {
+        if (!threat || dist(ant.col, ant.row, threat.col, threat.row) > CONFIG.WORKER_FLEE_CLEAR) {
             ant.state = ant.carrying > 0 ? 'return' : 'forage';
             ant.path = [];
             return;
@@ -60,14 +63,14 @@ export function updateWorker(ant: Ant): void {
             }
         }
     } else if (ant.state === 'return') {
-        //depositPheromone(ant);
         if (dist(ant.col, ant.row, STATE.nestCol, STATE.nestRow) <= CONFIG.WORKER_DEPOSIT_RANGE) {
+            STATS.totalFoodCollected += ant.carrying;
             STATE.food += ant.carrying;
             ant.carrying = 0;
             ant.state = 'forage';
             ant.path = [];
         } else {
-            if (!ant.path?.length) requestPath(ant, STATE.nestCol, STATE.nestRow);
+            if (!ant.path?.length) requestPathSmart(ant, STATE.nestCol, STATE.nestRow);
             followPath(ant);
         }
     }

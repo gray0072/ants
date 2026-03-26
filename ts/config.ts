@@ -37,12 +37,29 @@ export const CONFIG = {
     COST_WORKER: 15,
     COST_SOLDIER: 20,
     COST_SCOUT: 12,
+    COST_PRINCESS: 100,
     COST_CHAMBER_BASE: 30,
     COST_CHAMBER_STEP: 5,
+
+    // Soldier ring (flight guard)
+    SOLDIER_RING_RADIUS_MIN: 16,
+    SOLDIER_RING_RADIUS_MAX: 20,
+    WORKER_RING_RADIUS_MIN: 12,
+    WORKER_RING_RADIUS_MAX: 16,
+    FLIGHT_GUARD_CHASE_RADIUS: 5,  // max distance from ring spot to pursue an enemy
+
+    // Princess
+    PRINCESS_EXIT_RADIUS: 10,        // radius of upper-semicircle scatter on flight start (cells)
+    PRINCESS_SURFACE_LINGER: 180,   // ticks on surface before liftoff (~3s)
+    PRINCESS_HP: 80,
+    PRINCESS_SPEED: 0.05,
+    PRINCESS_REVEAL_RADIUS: 3,
+    PRINCESS_LIMIT: 30,
 
     // Population
     ANTS_PER_CHAMBER: 20,
     WIN_POPULATION: 500,
+    GOAL_CHAMBERS: 25,
 
     // Queen & upkeep
     QUEEN_HP: 200,
@@ -74,6 +91,8 @@ export const CONFIG = {
     WORKER_DAMAGE: 3,
     WORKER_ATTACK_RANGE: 1.5,
     WORKER_ATTACK_COOLDOWN: 60,
+    WORKER_FLEE_RADIUS: 4,
+    WORKER_FLEE_CLEAR: 5,
     SOLDIER_DAMAGE: 10,
     SOLDIER_ATTACK_RANGE: 1.5,
     SOLDIER_ATTACK_COOLDOWN: 35,
@@ -95,11 +114,6 @@ export const CONFIG = {
     FOOD_REGEN_AMOUNT: 8,
     CARRY_AMOUNT: 5,
     WORKER_DEPOSIT_RANGE: 1,
-
-    // Pheromone
-    PHER_DEPOSIT: 1.0,
-    PHER_DECAY: 0.003,
-    PHER_MIN: 0.01,
 
     // Enemies
     ENEMY_SPAWN_INTERVAL: 900,

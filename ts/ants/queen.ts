@@ -1,5 +1,5 @@
 import { CONFIG } from '../config';
-import { STATE, Ant } from '../state';
+import { STATE, Ant, QueenAnt } from '../state';
 import { createAnt, requestPath, followPath, reveal, nearestVisibleEnemy, dist } from '../ant';
 
 /** Returns the nearest free cell in the queen's chamber to her current position, 
@@ -52,7 +52,7 @@ export function freeEggsInQueenChamber(): Ant[] {
     ).sort((a, b) => (STAGE_ORDER[a.lifestage!] ?? 99) - (STAGE_ORDER[b.lifestage!] ?? 99));
 }
 
-export function updateQueen(ant: Ant): void {
+export function updateQueen(ant: QueenAnt): void {
     reveal(ant);
     if (ant.attackCooldown > 0) ant.attackCooldown--;
 
@@ -70,9 +70,9 @@ export function updateQueen(ant: Ant): void {
     if (ant.state === 'layEgg') {
         const arrived = followPath(ant);
         if (arrived) {
-            const order = ant.eggQueue?.shift();
-            if (order) {
-                const newAnt = createAnt(order.type, Math.floor(ant.col), Math.floor(ant.row));
+            const antType = ant.eggQueue?.shift();
+            if (antType) {
+                const newAnt = createAnt(antType, Math.floor(ant.col), Math.floor(ant.row));
                 newAnt.lifestage = 'egg';
                 newAnt.lifestageTick = CONFIG.EGG_TICKS;
                 STATE.ants.push(newAnt);

@@ -1,14 +1,15 @@
 import { CONFIG } from './config';
 import { STATE } from './state';
-import { PheromoneModule } from './pheromone';
 import { AntModule } from './ant';
 import { EnemyModule } from './enemy';
 import { ColonyModule } from './colony';
 import { MapModule } from './map';
 import { FogModule } from './fog';
-import { Renderer } from './renderer_pixi';
+import { Renderer } from './render';
 import { UIModule } from './ui';
 import { IntroModule } from './intro';
+import { applyDifficulty } from './difficulty';
+import { STATS } from './stats';
 
 const GameMain = (() => {
     let lastTime = 0;
@@ -26,7 +27,6 @@ const GameMain = (() => {
 
         while (accumulator >= FIXED_STEP) {
             STATE.tick++;
-            PheromoneModule.update();
             AntModule.update();
             EnemyModule.update();
             ColonyModule.update();
@@ -65,6 +65,7 @@ const GameMain = (() => {
         ColonyModule.init();
         CONFIG.PERF_DEBUG && ColonyModule.initPerfDebug();
         CONFIG.FOOD_DEBUG && (STATE.food = 999_999);
+        UIModule.setGameActive(true);
         start();
     }
 
@@ -72,7 +73,9 @@ const GameMain = (() => {
         stop();
         UIModule.hideModal();
         UIModule.reset();
+        applyDifficulty();
         STATE.reset();
+        STATS.reset();
         MapModule.init();
 
         // Full fog for intro — whole map visible

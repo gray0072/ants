@@ -2,7 +2,7 @@
 
 **Live: [gray0072.github.io/ants](https://gray0072.github.io/ants/)**
 
-A real-time ant colony simulation game rendered on an HTML5 canvas. Manage workers, soldiers, and scouts to grow your colony and defend the queen against waves of beetles and spiders.
+A real-time ant colony simulation game rendered on an HTML5 canvas. Grow your colony underground, raise an army of princesses, and launch the mating flight to win.
 
 ---
 
@@ -10,33 +10,42 @@ A real-time ant colony simulation game rendered on an HTML5 canvas. Manage worke
 
 | Feature | Description |
 |---------|-------------|
-| Ant types | Queen, Worker, Soldier, Scout — each with autonomous AI |
-| Fog of war | Map hidden until revealed by scout/worker movement |
-| Pheromone trails | Workers leave trails; other workers prefer proven paths |
+| Ant types | Queen, Worker, Soldier, Scout, Nurse, Princess — each with autonomous AI |
+| Fog of war | Map hidden until revealed by movement |
 | Enemy waves | Beetles and spiders spawn at surface edges, escalating each wave |
-| Colony growth | Dig chambers (+10 pop cap), expand surface, spawn ants |
-| Win/loss | Win: 500 ants alive with no enemies; Lose: queen dies |
+| Colony growth | Dig chambers, expand surface, spawn ants |
+| Princess flight | Launch a mating flight — soldiers and workers form a defense ring |
+| Survival mode | Continue after victory; repeat flights earn gold stars |
+| Difficulty | Easy / Medium / Hard — affects starting food and princess limit |
+| Stats | Peak population, food gathered, enemies killed, princesses flown, and more |
 
 ---
 
-## How It Works
+## How to Win
 
-1. Workers forage for food on the surface and return it to the nest
-2. Spend food to spawn ants (`W`/`S`/`E`), dig chambers (`D`), or expand surface (`F`)
-3. Soldiers patrol and engage enemies automatically
-4. Scouts reveal the fog of war, unlocking more surface to exploit
+1. Dig **25 chambers** underground
+2. Raise **20–30 princesses** (depends on difficulty)
+3. Press **`A`** to launch the princess flight
+4. Defend until all princesses escape the map
+
+After winning you can continue in **Survival mode** and repeat flights for stars (★).
 
 ---
 
 ## Player Actions
 
-| Key | Action | Cost |
-|-----|--------|------|
-| `W` | Spawn Worker | 15 food |
-| `S` | Spawn Soldier | 20 food |
-| `E` | Spawn Scout | 12 food |
-| `D` | Dig Chamber | 30 food (+10 pop cap) |
-| `F` | Expand Surface | 50 food |
+| Key | Shift+Click | Action | Cost |
+|-----|-------------|--------|------|
+| `W` | auto-spawn | Spawn Worker | 15 food |
+| `S` | auto-spawn | Spawn Soldier | 20 food |
+| `E` | auto-spawn | Spawn Scout | 12 food |
+| `D` | auto-spawn | Spawn Nurse | 10 food |
+| `Q` | auto-spawn | Spawn Princess | 100 food |
+| `R` | auto-dig | Dig Chamber | scales |
+| `F` | auto-expand | Expand Surface | scales |
+| `A` | — | Start Flight | — |
+| `Space` | — | Pause / Resume | — |
+| `1`–`4` | — | Set speed ×1 / ×2 / ×4 / ×8 | — |
 
 ---
 
@@ -44,7 +53,7 @@ A real-time ant colony simulation game rendered on an HTML5 canvas. Manage worke
 
 - [TypeScript](https://www.typescriptlang.org/) — game logic and type safety
 - [Vite](https://vitejs.dev/) — dev server and bundler
-- [Canvas 2D API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API) — rendering
+- [PixiJS](https://pixijs.com/) — WebGL renderer (map, fog, ants, enemies)
 - [gh-pages](https://github.com/tschaub/gh-pages) — GitHub Pages deployment
 
 ---
@@ -77,34 +86,27 @@ npm run deploy   # builds + pushes to gh-pages branch
 /
 ├── index.html
 ├── style.css
-├── ts/
-│   ├── config.ts      — numeric constants
-│   ├── state.ts       — mutable game state
-│   ├── map.ts         — map gen, BFS, fog, food
-│   ├── ant.ts         — ant FSM and pheromone deposit
-│   ├── pheromone.ts   — decay loop
-│   ├── enemy.ts       — wave spawning and chase AI
-│   ├── colony.ts      — spawn, dig, upkeep, win check
-│   ├── renderer.ts    — canvas rendering
-│   ├── ui.ts          — HUD, keyboard, modal
-│   ├── main.ts        — 60 UPS game loop
-│   └── ants/
-│       ├── queen.ts
-│       ├── nurse.ts
-│       ├── worker.ts
-│       ├── soldier.ts
-│       └── scout.ts
+└── ts/
+    ├── config.ts       — numeric constants
+    ├── state.ts        — mutable game state
+    ├── stats.ts        — session statistics (food, kills, ants, etc.)
+    ├── i18n.ts         — EN / RU translations
+    ├── difficulty.ts   — difficulty presets
+    ├── map.ts          — map gen, BFS, fog, food
+    ├── ant.ts          — ant FSM, flight guard logic
+    ├── enemy.ts        — wave spawning and chase AI
+    ├── colony.ts       — spawn orders, dig chambers, upkeep, flight completion
+    ├── ui.ts           — HUD, keyboard hotkeys, modals
+    ├── main.ts         — 60 UPS fixed-timestep game loop
+    ├── render/         — Canvas 2D renderer (map, fog, ants, enemies)
+    └── ants/
+        ├── queen.ts
+        ├── nurse.ts
+        ├── worker.ts
+        ├── soldier.ts
+        ├── scout.ts
+        └── princess.ts
 ```
-
----
-
-## Roadmap
-
-- [ ] Nurse ant type (heals nearby ants)
-- [ ] Multiple enemy factions with different behaviors
-- [ ] Save / load colony state
-- [ ] Mobile touch controls
-- [ ] Sound effects
 
 ---
 

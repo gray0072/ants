@@ -226,7 +226,6 @@ export const MapModule = {
     for (let i = size - 1; i >= COLS; i--) {
       STATE.map[i] = STATE.map[i - COLS];
       if (STATE.foodGrid) STATE.foodGrid[i] = STATE.foodGrid[i - COLS];
-      if (STATE.pheromone) STATE.pheromone[i] = STATE.pheromone[i - COLS];
       if (STATE.fog) STATE.fog[i] = STATE.fog[i - COLS];
     }
 
@@ -234,7 +233,6 @@ export const MapModule = {
     for (let c = 0; c < COLS; c++) {
       STATE.map[c] = 'surface';
       if (STATE.foodGrid) STATE.foodGrid[c] = 0;
-      if (STATE.pheromone) STATE.pheromone[c] = 0;
       if (STATE.fog) STATE.fog[c] = 0;
     }
 
@@ -263,12 +261,13 @@ export const MapModule = {
       if (STATE.foodGrid && STATE.foodGrid[i] > 0) STATE.foodCells.add(i);
     }
 
-    // Place food on the new top row
+    // Place food on the new top row and index it
     for (let n = 0; n < FOOD_PER_SURFACE_ROW * 3; n++) {
       const c = Math.floor(Math.random() * COLS);
       const i = c; // row 0
       if (STATE.foodGrid && STATE.foodGrid[i] === 0) {
         STATE.foodGrid[i] = FOOD_AMOUNT + Math.floor(Math.random() * FOOD_AMOUNT);
+        STATE.foodCells.add(i);
       }
     }
 

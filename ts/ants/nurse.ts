@@ -1,16 +1,16 @@
 import { CONFIG } from '../config';
-import { STATE, Ant } from '../state';
+import { STATE, Ant, NurseAnt } from '../state';
 import { MapModule } from '../map';
 import { reveal, requestPath, followPath } from '../ant';
 import { freeEggsInQueenChamber } from './queen';
 
-export function updateNurse(ant: Ant): void {
+export function updateNurse(ant: NurseAnt): void {
     reveal(ant);
     if (ant.assignedChamberIdx === undefined) {
         const assigned = new Set(
             STATE.ants
                 .filter(a => a.type === 'nurse' && a.assignedChamberIdx != null && a !== ant)
-                .map(a => a.assignedChamberIdx as number)
+                .map(a => (a as NurseAnt).assignedChamberIdx as number)
         );
         for (let i = 1; i < STATE.chamberPositions.length; i++) {
             if (!assigned.has(i)) { ant.assignedChamberIdx = i; break; }
