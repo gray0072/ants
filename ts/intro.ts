@@ -12,6 +12,8 @@ const SHED_MS   =  650;   // wings detach and fall
 const WALK_MS   =  900;   // walk to nest entrance
 const DIG_MS    = 1100;   // descend to chamber
 
+let _introCleanup: (() => void) | null = null;
+
 export const IntroModule = {
   play(onDone: () => void): void {
     const nestX  = STATE.nestCol * CELL + CELL / 2;
@@ -43,7 +45,9 @@ export const IntroModule = {
       document.removeEventListener('keydown',     onSkip);
       document.removeEventListener('pointerdown', onSkip);
       Renderer.setIntroQueen(null);
+      _introCleanup = null;
     }
+    _introCleanup = cleanup;
 
     function spiral(t: number): { x: number; y: number } {
       const radius = R0 * Math.pow(1 - t, 1.4);
@@ -151,5 +155,9 @@ export const IntroModule = {
     }
 
     rafId = requestAnimationFrame(frame);
+  },
+
+  cancel(): void {
+    _introCleanup?.();
   },
 };

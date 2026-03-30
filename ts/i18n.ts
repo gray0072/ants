@@ -27,11 +27,6 @@ export const TRANSLATIONS = {
         chambers_label: 'Chambers:',
         surface_label: 'Surface:',
         leg_queen: 'Queen',
-        leg_princess: 'Princess',
-        leg_worker: 'Worker',
-        leg_soldier: 'Soldier',
-        leg_scout: 'Scout',
-        leg_nurse: 'Nurse',
         leg_beetle: 'Beetle',
         leg_spider: 'Spider',
         leg_food: 'Food / Trail',
@@ -92,11 +87,6 @@ export const TRANSLATIONS = {
         chambers_label: 'Камеры:',
         surface_label: 'Поверх.:',
         leg_queen: 'Матка',
-        leg_princess: 'Принцесса',
-        leg_worker: 'Рабочий',
-        leg_soldier: 'Солдат',
-        leg_scout: 'Разведчик',
-        leg_nurse: 'Нянька',
         leg_beetle: 'Жук',
         leg_spider: 'Паук',
         leg_food: 'Еда / след',
@@ -153,13 +143,3 @@ export function t(key: TranslationKey): string {
     return TRANSLATIONS[currentLang][key] as string;
 }
 
-export function applyTranslations(): void {
-    document.querySelectorAll<HTMLElement>('[data-i18n]').forEach(el => {
-        el.textContent = t(el.dataset.i18n as TranslationKey);
-    });
-    document.querySelectorAll<HTMLElement>('[data-i18n-html]').forEach(el => {
-        el.innerHTML = t(el.dataset.i18nHtml as TranslationKey);
-    });
-    document.title = t('doc_title');
-    document.documentElement.lang = currentLang;
-}

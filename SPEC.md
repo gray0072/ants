@@ -7,15 +7,56 @@
 | TypeScript | ^6.0.2 | Game logic and type safety |
 | Vite | ^5.0.0 | Dev server, bundler |
 | PixiJS | ^8.0.0 | WebGL renderer (map, ants, fog) |
+| SolidJS | ^1.0.0 | Reactive UI (HUD, modals, bench panel) |
 | gh-pages | ^6.0.0 | Deploy to GitHub Pages |
-
-No framework. Pure TypeScript with a canvas renderer.
 
 ---
 
-## Overview
+## Architecture
 
-Ant Colony is a top-down real-time strategy/simulation game rendered on an HTML5 canvas. The player manages a colony of ants — workers, soldiers, scouts, and a queen — against waves of enemy insects. The goal is to grow the colony to 500 non-queen ants while keeping the queen alive.
+### Single mutable STATE
+
+All runtime game data lives in one global `STATE` object (`ts/state.ts`). Game modules read and write it directly — no immutability, no copying. This keeps the hot path allocation-free and avoids per-frame GC pressure.
+
+### Fixed-step game loop
+
+`main.ts` drives everything with a single `requestAnimationFrame` loop:
+
+```
+accumulator += deltaMs * speedMultiplier
+while accumulator >= FIXED_STEP (1000/UPS):
+    tick all modules
+    accumulator -= FIXED_STEP
+render
+```
+
+`UPS = 60`. Speed multiplier (1×/2×/4×/8×) scales the accumulator, not the real elapsed time, so the simulation stays deterministic regardless of display refresh rate.
+
+### SolidJS UI as a reactive mirror of STATE
+
+The UI never reads `STATE` directly. Instead, `UIModule.update()` is called once per frame and copies relevant `STATE` fields into a SolidJS store (`ts/ui/store.ts`). SolidJS re-renders only the components whose store slices actually changed.
+
+**Critical invariant**: auto-action flags (`autoSpawn`, `autoBuild`, `autoAction`) exist in **both** `STATE` (read by game logic) and `store` (read by UI). They must always be toggled via the dedicated `toggleAutoSpawn` / `toggleAutoBuild` / `toggleAutoAction` functions in `store.ts`, which update both in one call. Calling `setStore(...)` directly only updates the UI — the game logic keeps the old value.
+
+### Stateless modules
+
+`ColonyModule`, `AntModule`, `EnemyModule`, `MapModule`, `FogModule` hold no instance state. They are plain objects whose methods operate exclusively on `STATE`. This makes the call order in the game loop explicit and the modules individually testable.
+
+### PixiJS renderer with sprite pools
+
+`ts/render/entities.ts` maintains three growing arrays (`_antPool`, `_stagePool`, `_enmPool`). Each frame, sprites are assigned from the front of the pool; excess sprites are hidden. Sprites are never destroyed — the pool only grows. Ant textures (type × 3 animation frames) are pre-baked once at init via `bakeTexture` into off-screen render targets.
+
+**Important**: `Renderer.init()` must be called exactly once (by `GameMain`). The bench reuses the same Pixi Application — calling `init()` a second time would recreate all containers while leaving pool sprites attached to the old (detached) ones, making all ants invisible.
+
+### Bench mode
+
+The bench panel replaces the header area but leaves the canvas and HUD in place. Starting a render bench (`startRenderBench`) runs its own RAF loop that mirrors `GameMain.loop()` exactly — same fixed-step accumulator, same module call order — but adds `keepAlive()` (prevents queen death / STATE.over) and `STATE.food = 999_999` each tick. `STATE.survival = true` is set at bench setup so flight completion never triggers a modal.
+
+Exiting the bench without running any test resumes the game at speed 1 (`resumeGame()`). Exiting after a test restarts the game (`restartGame()`), which replays the intro and shows the difficulty modal.
+
+### Pathfinding hierarchy
+
+Three strategies, chosen by zone (see [Pathfinding](#pathfinding) section).
 
 ---
 
@@ -29,7 +70,7 @@ GameState {
   running: boolean
   over: boolean
   won: boolean
-  survival: boolean         // true after "Continue (Survival)" clicked
+  survival: boolean         // true after "Continue (Survival)" or in bench mode
   tick: number
   wave: number
 
@@ -37,7 +78,11 @@ GameState {
   food: number
   chambers: number
   surfaceRows: number
-  queenHp: number
+
+  // Auto-action flags (mirrored to SolidJS store — use toggle* functions to update)
+  autoSpawn: Record<AntType, boolean>
+  autoBuild: { chamber: boolean; expand: boolean }
+  autoAction: { flight: boolean }
 
   // Entities
   ants: Ant[]
@@ -83,8 +128,8 @@ STATS {
 
 - Top-down grid (80×60 cells). Top rows = **surface** (open ground). Below = **soil** (impassable) with carved **tunnels** and **chambers**.
 - **Fog of war** — cells are hidden until revealed by scouts, workers, or soldiers moving near them.
-- **Surface depth** starts at 2 rows and can be expanded (see Build).
-- **Nest** is always 15 cells below the surface bottom. As surface expands, nest slides deeper.
+- **Surface depth** starts at 3 rows and can be expanded (see Build).
+- **Nest** is always `NEST_DEPTH` (5) cells below the surface bottom. As surface expands, nest slides deeper.
 - Main vertical tunnel connects nest to surface row 0. Always passable.
 
 ---
@@ -111,7 +156,7 @@ All ants are drawn rotated in their movement direction (antennae forward).
 - Largest reveal radius (6 cells).
 
 ### Princess (pink) — `Q`
-- Spawned like other ants via the egg queue. Can only be ordered once all chambers are dug (max chambers reached). Limit: `PRINCESS_LIMIT` adult princesses (difficulty-dependent: 20 / 25 / 30).
+- Can only be ordered once all chambers are dug **and** surface is fully expanded. Limit: `PRINCESS_LIMIT` adult princesses (difficulty-dependent: 20 / 25 / 30).
 - **wander** — roams between lower chambers underground. On `flightStarted` transitions to `surface`.
 - **surface** — pathfinds to a random surface exit point near the nest. Has a random stagger delay (0–120 ticks) to spread out departure times.
 - **prepare** — mills around on the surface for ~3 s (180 ticks) before liftoff.
@@ -128,13 +173,13 @@ All ants are drawn rotated in their movement direction (antennae forward).
 
 - **Food** — collected by workers (5 per trip). Spent on ant spawning, digging, and surface expansion.
 - **Colony upkeep** — every 300 ticks: −0.05 food × number of ants.
-- **Population cap** = chambers × 10.
+- **Population cap** = `chambers × ANTS_PER_CHAMBER` (20 per chamber).
 
 ---
 
 ## Enemies
 
-Spawn in waves on the surface edges every ~900 ticks. Each wave is slightly larger than the last (×1.1).
+Spawn in waves on the surface edges every ~900 ticks. Each wave is slightly larger than the last (×1.05).
 
 - **Beetle** (dark gray) — slower, less damage.
 - **Spider** (dark red) — faster, more damage.
@@ -155,10 +200,12 @@ Enemy AI:
 | `S` | Spawn Soldier | 20 food | New soldier ant at nest |
 | `E` | Spawn Scout | 12 food | New scout ant at nest |
 | `D` | Spawn Nurse | 10 food | New nurse ant at nest |
-| `Q` | Spawn Princess | 100 food | New princess ant at nest (max chambers required) |
-| `R` | Dig Chamber | 30 food | +10 population cap; new chamber carved near nest |
-| `F` | Expand Surface | 50 food | Surface +1 row (max 30); nest slides 1 deeper; new food spawns on new row |
+| `Q` | Spawn Princess | 100 food | New princess (all chambers + max surface required) |
+| `R` | Dig Chamber | 30+5n food | +20 population cap; new chamber carved near nest |
+| `F` | Expand Surface | 50+10n food | Surface +1 row (max 30); nest slides 1 deeper; new food spawns |
 | `A` | Start Flight | — | Begins princess mating flight (all prerequisites met) |
+
+Hold **Shift** + key to toggle the corresponding auto-action (highlighted button = active).
 
 ---
 
@@ -183,9 +230,10 @@ Enemy AI:
 
 1. Queen alive.
 2. Chambers ≥ `GOAL_CHAMBERS` (25).
-3. Adult princesses ≥ `PRINCESS_LIMIT` (difficulty-dependent).
+3. Surface rows = `SURFACE_ROWS_MAX` (30).
+4. Adult princesses ≥ `PRINCESS_LIMIT` (difficulty-dependent: 20 / 25 / 30).
 
-When all three are met, the **Start Flight** button (`A`) becomes active.
+When all four are met, the **Start Flight** button (`A`) becomes active.
 
 ### Starting the flight
 
@@ -259,6 +307,7 @@ row surfaceRows ─────────── surface/underground boundary
       │ (carved from row 0 down to nestRow)
       │
 row nestRow ─── queen chamber (2*QHW+1 × 2*QHH+1 'chamber' cells)
+                QHW starts at 1 and grows by 1 each time a new floor is unlocked
 ```
 
 The **main tunnel** runs exactly on `nestCol` from row `0` down to `nestRow`. It is carved unconditionally so surface expansion never disconnects the nest.
@@ -330,14 +379,53 @@ Skips or shortens BFS based on zone:
 
 The tunnel exit is always `(STATE.nestCol, STATE.surfaceRows - 1)` — the topmost cell of the main vertical tunnel, which is on the surface boundary.
 
-Path construction for the underground → surface case:
+---
 
-```ts
-const bfsPath = findPath(antCol, antRow, nestCol, surfaceRows - 1, isPassable);
-// bfsPath[0] = exit cell, bfsPath[last] = first step
-ant.path = [[tc, tr], ...bfsPath];
-// Execution: pop first step → ... → pop exit → pop [tc,tr] (straight to target)
-```
+## Bench Mode
+
+The bench panel replaces the page header (canvas and HUD remain). It is opened via the **Bench** button in the HUD footer, which also pauses the game.
+
+### Scenario options
+
+| Field | Range | Description |
+|-------|-------|-------------|
+| Workers / Soldiers / Scouts | 0–2000 | Initial adult ant counts |
+| Nurses | 0–`CHAMBER_FLOORS × CHAMBERS_PER_FLOOR` | Initial nurse count |
+| Princesses | 0–`PRINCESS_LIMIT` | Initial princess count |
+| Enemies | 0–2000 | Enemies placed randomly on the surface |
+| All chambers | ☐ | Dig all possible chambers before starting |
+| Full surface | ☐ | Expand surface to max before starting |
+
+### Measure options
+
+| Option | Description |
+|--------|-------------|
+| Update (logic) | Benchmark `AntModule` + `EnemyModule` + `ColonyModule` per tick |
+| Render | Benchmark `Renderer.render()` per frame |
+| Reveal map | Fill fog array to 1 (all cells visible) before starting |
+
+When **Update** only: runs 1000 ticks synchronously (blocking), prints percentile table.
+When **Render** is checked: starts a live RAF loop mirroring the main game loop. Speed buttons and pause work normally during the live bench.
+
+**Exit behaviour**: closing the bench without running any test resumes the existing game at speed 1. Closing after running a test restarts the game (shows difficulty modal).
+
+### Bench vs. normal game startup
+
+| | Normal game | Bench |
+|---|---|---|
+| `STATE.reset()` + `STATS.reset()` + `MapModule.init()` | `restart()` | `setup()` |
+| `ColonyModule.init()` (queen + starting ants) | `startGame()` | `setup()` |
+| Difficulty (`applyDifficulty`) | yes | no — uses current CONFIG |
+| Fog | partial reveal (nest + tunnel path) | fill 1 or leave 0 |
+| Intro animation + modal | yes | no |
+| Ant counts | starting values only | user-defined parameters |
+| `autoSpawn` | all false | all true |
+| Enemy wave spawning | normal interval | disabled (`nextEnemySpawn = MAX_SAFE_INTEGER`) |
+| `STATE.survival` | false | always true (prevents game-over modal) |
+| Cached STATE fields (`canDigChamber` etc.) | updated on first `ColonyModule.update()` tick | set explicitly at end of `setup()` |
+| HUD sync (`store.update()`) | called every frame by game loop | called once after `setup()` by `startRenderBench` |
+
+Shared helpers used by both bench and `PERF_DEBUG` mode: `MapModule.expandSurfaceFull()`, `ColonyModule.digAllChambers()`.
 
 ---
 
@@ -345,34 +433,43 @@ ant.path = [[tc, tr], ...bfsPath];
 
 ```
 /
-├── index.html          — canvas + HUD overlay
-├── style.css           — dark theme, buttons, legend, modals
-├── tsconfig.json       — TypeScript configuration
+├── index.html              — canvas + app mount point
+├── style.css               — dark theme, buttons, modals, bench panel
+├── tsconfig.json           — TypeScript configuration
 └── ts/
-    ├── config.ts       — all numeric constants with type definitions
-    ├── state.ts        — single mutable game state (food, ants[], enemies[], grids, flight flags)
-    ├── stats.ts        — session statistics (reset on restart)
-    ├── i18n.ts         — EN / RU translation strings and helpers
-    ├── difficulty.ts   — difficulty presets (easy / medium / hard) and apply logic
-    ├── map.ts          — map gen, BFS pathfinding, food placement, fog, surface expand
-    ├── ant.ts          — createAnt(), updateFlightGuardStates(), FSM dispatch
-    ├── enemy.ts        — createEnemy(), wave spawning, chase/attack AI, kill tracking
-    ├── colony.ts       — orderAnt(), digChamber(), upkeep tick, flight completion check
-    ├── ui.ts           — HUD update, keyboard hotkeys, modals, auto-spawn, stars display
-    ├── main.ts         — fixed-timestep game loop (60 UPS), restart, survival resume
+    ├── config.ts           — all numeric constants
+    ├── state.ts            — single mutable game state + popCap/chamberCost helpers
+    ├── stats.ts            — session statistics (reset on restart)
+    ├── i18n.ts             — EN / RU translation strings and helpers
+    ├── difficulty.ts       — difficulty presets (easy / medium / hard)
+    ├── map.ts              — map gen, BFS pathfinding, flow field, food, surface expand
+    ├── fog.ts              — fog reveal, shrink over time
+    ├── ant.ts              — createAnt(), updateFlightGuardStates(), FSM dispatch
+    ├── enemy.ts            — wave spawning, chase/attack AI, kill tracking
+    ├── colony.ts           — orderAnt(), digChamber(), upkeep tick, auto-actions, flight check
+    ├── intro.ts            — intro animation controller
+    ├── main.ts             — fixed-step game loop (60 UPS), speed control, restart, survival
     ├── render/
-    │   ├── index.ts    — renderer entry point
-    │   ├── constants.ts — render constants (colors, sizes)
-    │   ├── builders.ts — sprite/shape builders
-    │   ├── entities.ts — ants and enemies rendering
-    │   ├── map.ts      — map and food rendering
-    │   ├── overlay.ts  — fog of war overlay
-    │   └── intro.ts    — intro screen rendering
-    └── ants/
-        ├── queen.ts    — idle / layEgg / returnToThrone
-        ├── nurse.ts    — fetchEgg / waitInChamber
-        ├── worker.ts   — forage / return / flee / ring-guard states
-        ├── soldier.ts  — patrol / chase / ring-guard states
-        ├── scout.ts    — scout (fog reveal)
-        └── princess.ts — wander / surface / prepare / fly (escape tracking)
+    │   ├── index.ts        — Renderer.init() / render() entry point
+    │   ├── constants.ts    — pixel sizes, colors
+    │   ├── builders.ts     — procedural sprite/shape builders
+    │   ├── entities.ts     — ant + enemy sprite pools, per-frame update
+    │   ├── map.ts          — terrain pixel buffer update
+    │   ├── overlay.ts      — food dots, fog overlay, HP bars
+    │   └── intro.ts        — intro queen animation
+    ├── ants/
+    │   ├── queen.ts        — idle / layEgg / returnToThrone
+    │   ├── nurse.ts        — fetchEgg / waitInChamber
+    │   ├── worker.ts       — forage / return / flee / ring-guard states
+    │   ├── soldier.ts      — patrol / chase / ring-guard states
+    │   ├── scout.ts        — scout (fog reveal)
+    │   └── princess.ts     — wander / surface / prepare / fly
+    ├── ui/
+    │   ├── index.tsx       — UIModule: SolidJS mount, keyboard hotkeys
+    │   ├── store.ts        — SolidJS store (reactive mirror of STATE), game callbacks
+    │   ├── App.tsx         — root component: Header / BenchPanel, HUD, modals
+    │   └── BenchPanel.tsx  — bench configuration and controls
+    └── bench/
+        ├── bench.ts        — BenchOptions, setup(), keepAlive(), runUpdateBench()
+        └── bench-render.ts — startRenderBench(): live RAF bench loop
 ```

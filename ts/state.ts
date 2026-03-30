@@ -14,58 +14,47 @@ export type NurseState = 'fetchEgg' | 'waitInChamber';
 export type PrincessState = 'wander' | 'surface' | 'prepare' | 'fly';
 export type AntState = WorkerState | SoldierState | ScoutState | QueenState | NurseState | PrincessState;
 
-
-export type EnemyState = 'wander' | 'chase';
-
-export interface Enemy {
-    id: number;
-    type: 'beetle' | 'spider';
+export interface Mover {
     col: number;
     row: number;
-    hp: number;
-    maxHp: number;
+    targetCol: number | null;
+    targetRow: number | null;
     speed: number;
+    angle: number;
+    path: [number, number][];
+}
+
+export interface Attacker<T> {
+    attackRange: number;
     damage: number;
     attackCooldown: number;
     baseCooldown: number;
-    path: [number, number][];
-    targetCol: number | null;
-    targetRow: number | null;
-    state: EnemyState;
-    wanderTimer: number;
-    angle: number;
-    _targetTick: number;
-    _cachedTarget: Ant | null;
+    cachedTarget: T | null;
+    cachedTargetTTL: number;
 }
 
-// Shared base fields — not exported directly; use the Ant union instead
-interface AntBase {
-    id: number;
-    col: number;
-    row: number;
+export interface Enemy extends Mover, Attacker<Ant> {
+    type: 'beetle' | 'spider';
     hp: number;
     maxHp: number;
-    speed: number;
-    damage: number;
+    wanderTimer: number;
+}
+
+interface AntBase extends Mover, Attacker<Enemy> {
+    hp: number;
+    maxHp: number;
     revealRadius: number;
     lifestage: Lifestage;
     lifestageTick: number;
-    path: [number, number][];
-    targetCol: number | null;
-    targetRow: number | null;
-    carrying: number;
-    attackCooldown: number;
     _carried: boolean;
     wanderTimer: number;
-    angle: number;
     _lastRevealIdx: number;
-    _threatTick: number;
-    _cachedThreat: Enemy | null;
 }
 
 export interface WorkerAnt extends AntBase {
     type: 'worker';
     state: WorkerState;
+    carriedFood: number;
 }
 
 export interface SoldierAnt extends AntBase {
@@ -120,7 +109,7 @@ export interface GameState {
     foodGrid: Float32Array | null;
     chambers: number;
     chamberPositions: ChamberPosition[];
-    queenHp: number;
+    queenChamberHalfW: number;
     upkeepTimer: number;
     surfaceRows: number;
 
@@ -140,16 +129,21 @@ export interface GameState {
     queen: QueenAnt | null;
     foodCells: Set<number>;
 
-    // Flow field
-    nestFlowDir: Uint8Array | null;
-    nestFlowDist: Int32Array | null;
-    nestFlowDirty: boolean;
-
     // Goals / flight
     flightStarted: boolean;
     flightTotal: number;
     flightEscaped: number;
     completedFlights: number;
+
+    // Auto flags (source of truth for game logic)
+    autoSpawn: Record<'worker' | 'soldier' | 'scout' | 'nurse' | 'princess', boolean>;
+    autoBuild: Record<'chamber' | 'expand', boolean>;
+    autoAction: Record<'flight', boolean>;
+
+    // Cached colony queries (updated each tick by ColonyModule)
+    canDigChamber: boolean;
+    canSpawnNurse: boolean;
+    canSpawnPrincess: boolean;
 
     // Methods
     reset(): void;
@@ -176,7 +170,7 @@ export const STATE: GameState = {
     foodGrid: null,
     chambers: 0,
     chamberPositions: [],
-    queenHp: 0,
+    queenChamberHalfW: CONFIG.QUEEN_CHAMBER_HALF_W_INIT,
     upkeepTimer: 0,
     surfaceRows: 0,
 
@@ -198,14 +192,19 @@ export const STATE: GameState = {
     flightEscaped: 0,
     completedFlights: 0,
 
+    // Auto flags
+    autoSpawn: { worker: false, soldier: false, scout: false, nurse: false, princess: false },
+    autoBuild: { chamber: false, expand: false },
+    autoAction: { flight: false },
+
+    // Cached colony queries
+    canDigChamber: false,
+    canSpawnNurse: false,
+    canSpawnPrincess: false,
+
     // Cached references
     queen: null,
     foodCells: new Set(),
-
-    // Flow field
-    nestFlowDir: null,
-    nestFlowDist: null,
-    nestFlowDirty: true,
 
     reset() {
         this.running = false;
@@ -219,8 +218,8 @@ export const STATE: GameState = {
         this.food = CONFIG.START_FOOD;
         this.chambers = CONFIG.START_CHAMBERS;
         this.chamberPositions = [];
+        this.queenChamberHalfW = CONFIG.QUEEN_CHAMBER_HALF_W_INIT;
         this.surfaceRows = CONFIG.SURFACE_ROWS_START;
-        this.queenHp = CONFIG.QUEEN_HP;
         this.upkeepTimer = 0;
         this.ants = [];
         this.enemies = [];
@@ -235,9 +234,12 @@ export const STATE: GameState = {
         this.flightTotal = 0;
         this.flightEscaped = 0;
         this.completedFlights = 0;
-        this.nestFlowDir = null;
-        this.nestFlowDist = null;
-        this.nestFlowDirty = true;
+        this.autoSpawn = { worker: false, soldier: false, scout: false, nurse: false, princess: false };
+        this.autoBuild = { chamber: false, expand: false };
+        this.autoAction = { flight: false };
+        this.canDigChamber = false;
+        this.canSpawnNurse = false;
+        this.canSpawnPrincess = false;
     },
 
     idx(col: number, row: number): number {

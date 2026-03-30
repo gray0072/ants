@@ -1,6 +1,6 @@
 import { Application, Container, Graphics, RenderTexture, Texture } from 'pixi.js';
 import { AntType } from '../state';
-import { CELL, DRAW_SCALE, ANT_HEX, ENM_HEX, darken } from './constants';
+import { CELL, DRAW_SCALE, ANT_HEX, ENM_HEX, FOOD_BASE_R, CARRY_FOOD_BASE_R, darken } from './constants';
 
 // All drawn head-up (head at −Y), origin at body/thorax junction.
 //
@@ -129,6 +129,39 @@ export function buildSpider(): Graphics {
     g.moveTo(-r * 0.15, -r * 0.52).lineTo(-r * 0.22, -r * 0.72);
     g.moveTo(r * 0.15, -r * 0.52).lineTo(r * 0.22, -r * 0.72);
     g.stroke({ color: darken(c, 0.5), width: r * 0.11, cap: 'round' });
+    return g;
+}
+
+export function buildFoodPellet(): Graphics {
+    const g = new Graphics();
+    const r = CELL * FOOD_BASE_R * DRAW_SCALE;
+    g.circle(r * 0.14, r * 0.18, r * 0.90).fill({ color: 0x1e5c08, alpha: 0.80 });
+    g.circle(0, 0, r).fill(0x5ecf22);
+    g.circle(-r * 0.30, -r * 0.28, r * 0.36).fill({ color: 0xccff88, alpha: 0.65 });
+    return g;
+}
+
+export function buildNestMarker(): Graphics {
+    const g = new Graphics();
+    const r = CELL * 2.5 * DRAW_SCALE;
+    g.circle(0, 0, r).stroke({ color: 0xc864dc, alpha: 0.60, width: 1.5 * DRAW_SCALE });
+    return g;
+}
+
+export function buildCarryFood(): Graphics {
+    const g = new Graphics();
+    const r = CELL * CARRY_FOOD_BASE_R * DRAW_SCALE;
+    g.circle(0, 0, r * 0.38).fill({ color: 0xaaff44, alpha: 0.35 });
+    g.circle(0, 0, r * 0.22).fill(0x80c840);
+    g.ellipse(-r * 0.07, -r * 0.06, r * 0.08, r * 0.06).fill({ color: 0xffffff, alpha: 0.50 });
+    return g;
+}
+
+export function buildCarryEgg(): Graphics {
+    const g = new Graphics();
+    // White so sprite.tint can recolour it per ant type
+    g.ellipse(0, 0, CELL * 0.14 * DRAW_SCALE, CELL * 0.19 * DRAW_SCALE)
+        .fill({ color: 0xffffff, alpha: 0.92 });
     return g;
 }
 

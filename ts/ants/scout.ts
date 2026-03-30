@@ -1,7 +1,8 @@
 import { CONFIG } from '../config';
 import { STATE, Ant } from '../state';
 import { MapModule } from '../map';
-import { reveal, requestPathSmart, followPath } from '../ant';
+import { reveal } from '../ant';
+import { requestPath, followPath } from '../path';
 
 export function updateScout(ant: Ant): void {
   reveal(ant);
@@ -14,7 +15,7 @@ export function updateScout(ant: Ant): void {
       tr = Math.floor(Math.random() * ROWS);
       attempts++;
     } while ((STATE.fog && STATE.fog[STATE.idx(tc, tr)] > 0 || !MapModule.isPassable(tc, tr)) && attempts < 50);
-    requestPathSmart(ant, tc, tr);
+    requestPath(ant, tc, tr);
   }
   followPath(ant);
 }

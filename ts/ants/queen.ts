@@ -1,12 +1,13 @@
 import { CONFIG } from '../config';
 import { STATE, Ant, QueenAnt } from '../state';
-import { createAnt, requestPath, followPath, reveal, nearestVisibleEnemy, dist } from '../ant';
+import { createAnt, reveal, nearestVisibleEnemy, tryAttack } from '../ant';
+import { requestPath, followPath } from '../path';
 
 /** Returns the nearest free cell in the queen's chamber to her current position, 
  * or null if the chamber is full. */
 export function findFreeQueenChamberSpot(): { c: number; r: number } | null {
     const { nestCol: nc, nestRow: nr } = STATE;
-    const hw = CONFIG.QUEEN_CHAMBER_HALF_W;
+    const hw = STATE.queenChamberHalfW;
     const hh = CONFIG.QUEEN_CHAMBER_HALF_H;
     const qc = STATE.queen ? Math.floor(STATE.queen.col) : nc;
     const qr = STATE.queen ? Math.floor(STATE.queen.row) : nr;
@@ -34,7 +35,7 @@ export function findFreeQueenChamberSpot(): { c: number; r: number } | null {
 
 export function freeEggsInQueenChamber(): Ant[] {
     const { nestCol, nestRow } = STATE;
-    const hw = CONFIG.QUEEN_CHAMBER_HALF_W;
+    const hw = STATE.queenChamberHalfW;
     const hh = CONFIG.QUEEN_CHAMBER_HALF_H;
     const reserved = new Set();
     for (const a of STATE.ants) {
@@ -58,11 +59,7 @@ export function updateQueen(ant: QueenAnt): void {
 
     // Attack nearest visible enemy if within range
     const threat = nearestVisibleEnemy(ant);
-    if (threat && dist(ant.col, ant.row, threat.col, threat.row) <= CONFIG.QUEEN_ATTACK_RANGE) {
-        if (ant.attackCooldown === 0) {
-            threat.hp -= CONFIG.QUEEN_DAMAGE;
-            ant.attackCooldown = CONFIG.QUEEN_ATTACK_COOLDOWN;
-        }
+    if (threat && tryAttack(ant, threat) === 'hitDone') {
         return;
     }
 

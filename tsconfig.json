@@ -11,8 +11,10 @@
     "rootDir": "./ts",
     "declaration": false,
     "noImplicitAny": false,
-    "noEmit": false
+    "noEmit": false,
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js"
   },
-  "include": ["ts/**/*.ts"],
+  "include": ["ts/**/*.ts", "ts/**/*.tsx"],
   "exclude": ["node_modules"]
 }

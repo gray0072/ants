@@ -5,13 +5,15 @@ import { FogModule } from './fog';
 import { createAnt } from './ant';
 import { MapModule } from './map';
 
+let _autoSpawnTurn = 0;
+
 function randomSpawnPos(): { c: number; r: number } {
     const positions = STATE.chamberPositions;
     const base = positions.length > 0
         ? positions[Math.floor(Math.random() * positions.length)]
         : { col: STATE.nestCol, row: STATE.nestRow };
     const isQueen = base.col === STATE.nestCol && base.row === STATE.nestRow;
-    const rc = isQueen ? CONFIG.QUEEN_CHAMBER_HALF_W : CONFIG.CHAMBER_RADIUS;
+    const rc = isQueen ? STATE.queenChamberHalfW : CONFIG.CHAMBER_RADIUS;
     const rr = isQueen ? CONFIG.QUEEN_CHAMBER_HALF_H : CONFIG.CHAMBER_RADIUS;
     return {
         c: base.col + Math.floor(Math.random() * (2 * rc + 1)) - rc,
@@ -32,6 +34,14 @@ function canSpawnNurse(): boolean {
     const nurseCount = STATE.ants.filter(a => a.type === 'nurse').length
         + (STATE.queen?.eggQueue ?? []).filter(o => o === 'nurse').length;
     return nurseCount < STATE.chamberPositions.length - 1;
+}
+
+function setAntsCount(type: AntType, toAmount: number): void {
+    STATE.ants = STATE.ants.filter(a => a.type !== type)
+    for (let i = 0; i < toAmount; i++) {
+        const { c, r } = randomSpawnPos();
+        STATE.ants.push(createAnt(type, c, r));
+    }
 }
 
 function getChamberSlot(n: number): { cc: number; cr: number; floorRow: number } | null {
@@ -62,6 +72,8 @@ function getChamberSlot(n: number): { cc: number; cr: number; floorRow: number }
 
 export const ColonyModule = {
     init(): void {
+        STATE.ants.length = 0;
+        STATE.chamberPositions.length = 0;
         // Place queen
         const queen = createAnt('queen', STATE.nestCol, STATE.nestRow);
         STATE.ants.push(queen);
@@ -71,18 +83,24 @@ export const ColonyModule = {
         STATE.chamberPositions.push({ col: STATE.nestCol, row: STATE.nestRow });
 
         // Starting ants are free — founding colony
-        for (let i = 0; i < CONFIG.START_WORKERS; i++) {
-            const { c, r } = randomSpawnPos();
-            STATE.ants.push(createAnt('worker', c, r));
-        }
-        for (let i = 0; i < CONFIG.START_SOLDIERS; i++) {
-            const { c, r } = randomSpawnPos();
-            STATE.ants.push(createAnt('soldier', c, r));
-        }
-        for (let i = 0; i < CONFIG.START_SCOUTS; i++) {
-            const { c, r } = randomSpawnPos();
-            STATE.ants.push(createAnt('scout', c, r));
-        }
+        setAntsCount('worker', CONFIG.START_WORKERS);
+        setAntsCount('soldier', CONFIG.START_SOLDIERS);
+        setAntsCount('scout', CONFIG.START_SCOUTS);
+    },
+
+    initPerfDebug(): void {
+        MapModule.expandSurfaceFull();
+        this.digAllChambers();
+        setAntsCount('worker', 300);
+        setAntsCount('soldier', 100);
+        setAntsCount('scout', 10);
+        setAntsCount('nurse', STATE.chamberPositions.length - 1);
+        setAntsCount('princess', CONFIG.PRINCESS_LIMIT);
+        STATE.wave = 80;
+    },
+
+    setAntsCount(type: AntType, toAmount: number): void {
+        setAntsCount(type, toAmount);
     },
 
     orderAnt(type: AntType): boolean {
@@ -150,15 +168,22 @@ export const ColonyModule = {
 
         STATE.chamberPositions.push({ col: cc, row: cr });
         FogModule.revealArea(cc, cr, 7);
-        if (STATE.chambers % CONFIG.CHAMBERS_PER_FLOOR === 1) {
+        // 1st chamber is queen's
+        if (STATE.chambers > 2 && STATE.chambers % CONFIG.CHAMBERS_PER_FLOOR === 2) {
+            STATE.queenChamberHalfW += CONFIG.QUEEN_CHAMBER_HALF_W_STEP;
+            MapModule.carveRect(nestCol - STATE.queenChamberHalfW, nestRow - CONFIG.QUEEN_CHAMBER_HALF_H, 2 * STATE.queenChamberHalfW + 1, 2 * CONFIG.QUEEN_CHAMBER_HALF_H + 1, 'chamber');
             FogModule.revealArea(nestCol, cr, 7);
         }
-        STATE.nestFlowDirty = true;
         return true;
     },
 
     canDigChamber(): boolean {
         return getChamberSlot(STATE.chambers + 1) !== null;
+    },
+
+    digAllChambers(): void {
+        STATE.food = 999_999;
+        while (this.canDigChamber()) { this.digChamber(); STATE.food = 999_999; }
     },
 
     startFlight(): boolean {
@@ -173,45 +198,12 @@ export const ColonyModule = {
         return canSpawnPrincess();
     },
 
-    initPerfDebug(): void {
-        // Expand surface to max
-        STATE.food = 999_999;
-        while (STATE.surfaceRows < CONFIG.SURFACE_ROWS_MAX) {
-            MapModule.expandSurface();
-            STATE.food = 999_999;
-        }
-
-        // Dig all possible chambers
-        while (this.canDigChamber()) {
-            STATE.food = 999_999;
-            this.digChamber();
-        }
-
-        // Reveal entire map fog
-        //if (STATE.fog) STATE.fog.fill(1);
-
-        // Spawn ants directly, bypassing pop cap and egg queue
-        const nc = STATE.nestCol, nr = STATE.nestRow;
-        for (let i = 0; i < 100; i++)
-            STATE.ants.push(createAnt('soldier', nc, nr));
-
-        const maxNurses = STATE.chamberPositions.length - 1;
-        for (let i = 0; i < maxNurses; i++)
-            STATE.ants.push(createAnt('nurse', nc, nr));
-
-        for (let i = 0; i < 300; i++)
-            STATE.ants.push(createAnt('worker', nc, nr));
-
-        for (let i = 0; i < 10; i++)
-            STATE.ants.push(createAnt('scout', nc, nr));
-
-        for (let i = 0; i < CONFIG.PRINCESS_LIMIT; i++)
-            STATE.ants.push(createAnt('princess', nc, nr));
-
-        STATE.wave = 50;
-    },
-
     update(): void {
+        // Update cached queries for UI and auto-logic
+        STATE.canDigChamber = getChamberSlot(STATE.chambers + 1) !== null;
+        STATE.canSpawnNurse = canSpawnNurse();
+        STATE.canSpawnPrincess = canSpawnPrincess();
+
         const antCount = STATE.ants.length;
 
         // Upkeep
@@ -238,6 +230,40 @@ export const ColonyModule = {
                 STATE.won = true;
                 STATE.running = false;
             }
+        }
+
+        // Auto-actions
+        if (!STATE.running || !STATE.queen) return;
+
+        if (STATE.autoBuild.chamber && STATE.canDigChamber && STATE.food >= STATE.chamberCost()) {
+            this.digChamber();
+        }
+        if (STATE.autoBuild.expand && STATE.surfaceRows < CONFIG.SURFACE_ROWS_MAX && STATE.food >= STATE.expandCost()) {
+            MapModule.expandSurface();
+        }
+        if (STATE.autoAction.flight) this.startFlight();
+
+        if ((STATE.queen.eggQueue?.length ?? 0) > 0) return;
+
+        const types = (['worker', 'soldier', 'scout', 'nurse', 'princess'] as const).filter(t => STATE.autoSpawn[t]);
+        if (types.length === 0) return;
+
+        _autoSpawnTurn = _autoSpawnTurn % types.length;
+        let type = types[_autoSpawnTurn];
+
+        if (type === 'nurse' && !STATE.canSpawnNurse) {
+            _autoSpawnTurn = (_autoSpawnTurn + 1) % types.length;
+            type = types[_autoSpawnTurn];
+            if (type === 'nurse') return;
+        }
+        if (type === 'princess' && !STATE.canSpawnPrincess) {
+            _autoSpawnTurn = (_autoSpawnTurn + 1) % types.length;
+            type = types[_autoSpawnTurn];
+            if (type === 'princess') return;
+        }
+
+        if (this.orderAnt(type)) {
+            _autoSpawnTurn = (_autoSpawnTurn + 1) % types.length;
         }
     },
 };

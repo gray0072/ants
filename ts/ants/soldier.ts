@@ -1,30 +1,21 @@
 import { CONFIG } from '../config';
 import { STATE, SoldierAnt } from '../state';
 import { MapModule } from '../map';
-import { nearestVisibleEnemy, updateFlightGuardStates, requestPathSmart, followPath, reveal, dist } from '../ant';
+import { nearestVisibleEnemy, updateFlightGuardStates, reveal, tryAttack, chaseTarget } from '../ant';
+import { requestPath, followPath } from '../path';
 
 export function updateSoldier(ant: SoldierAnt): void {
     reveal(ant);
     if (ant.attackCooldown > 0) ant.attackCooldown--;
 
-    if (updateFlightGuardStates(ant, CONFIG.SOLDIER_ATTACK_RANGE, CONFIG.SOLDIER_ATTACK_COOLDOWN)) return;
+    if (updateFlightGuardStates(ant)) return;
 
-    // Underground: chase visible enemy
+    // Chase visible enemy
     const enemy = nearestVisibleEnemy(ant);
     if (enemy) {
-        const d = dist(ant.col, ant.row, enemy.col, enemy.row);
-        if (d <= CONFIG.SOLDIER_ATTACK_RANGE) {
-            if (ant.attackCooldown === 0) {
-                enemy.hp -= ant.damage;
-                ant.attackCooldown = CONFIG.SOLDIER_ATTACK_COOLDOWN;
-            }
-        } else {
+        if (tryAttack(ant, enemy) === 'outOfRange') {
             ant.state = 'chase';
-            const ec = Math.floor(enemy.col), er = Math.floor(enemy.row);
-            if (!ant.path?.length || ant.targetCol !== ec || ant.targetRow !== er) {
-                requestPathSmart(ant, ec, er);
-            }
-            followPath(ant);
+            chaseTarget(ant, enemy);
         }
         return;
     }
@@ -42,7 +33,7 @@ export function updateSoldier(ant: SoldierAnt): void {
             const clamped_r = Math.max(0, Math.min(CONFIG.ROWS - 1, cr));
             if (MapModule.isPassable(clamped_c, clamped_r)) { tc = clamped_c; tr = clamped_r; break; }
         }
-        requestPathSmart(ant, tc, tr);
+        requestPath(ant, tc, tr);
     }
     followPath(ant);
 }

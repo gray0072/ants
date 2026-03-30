@@ -1,7 +1,8 @@
 import { CONFIG } from '../config';
 import { STATE, Ant, NurseAnt } from '../state';
 import { MapModule } from '../map';
-import { reveal, requestPath, followPath } from '../ant';
+import { reveal } from '../ant';
+import { requestPath, followPath } from '../path';
 import { freeEggsInQueenChamber } from './queen';
 
 export function updateNurse(ant: NurseAnt): void {

@@ -1,13 +1,13 @@
 import {
-    Application, BufferImageSource, Container, Graphics,
+    Application, BufferImageSource, Container,
     Sprite, Texture,
 } from 'pixi.js';
 import { AntType } from '../state';
-import { MAP_W, MAP_H, ANT_W, ANT_H, ANT_CX, ANT_CY, ANT_AY, ENM_SZ, EGG_W, EGG_H, LAR_W, LAR_H, PUP_W, PUP_H, DISP } from './constants';
-import { buildAnt, buildBeetle, buildSpider, buildEgg, buildLarva, buildPupa, bakeTexture } from './builders';
+import { MAP_W, MAP_H, ANT_W, ANT_H, ANT_CX, ANT_CY, ANT_AY, ENM_SZ, EGG_W, EGG_H, LAR_W, LAR_H, PUP_W, PUP_H, FOOD_SZ, FOOD_CX, FOOD_CY, NEST_SZ, CARRY_FOOD_SZ, CARRY_EGG_W, CARRY_EGG_H } from './constants';
+import { buildAnt, buildBeetle, buildSpider, buildEgg, buildLarva, buildPupa, buildFoodPellet, buildNestMarker, buildCarryFood, buildCarryEgg, bakeTexture } from './builders';
 import { initMap, updateMap } from './map';
 import { initEntities, updateEntities } from './entities';
-import { createOverlayGraphics, updateFood, updateOverlay } from './overlay';
+import { createFoodContainer, initFood, createOverlayContainer, initOverlay, updateFood, updateOverlay } from './overlay';
 import { IntroQueenData, createIntroLayers, setIntroQueen as _setIntroQueen, hasIntroData, updateIntroQueen } from './intro';
 
 export type { IntroQueenData };
@@ -36,9 +36,9 @@ export const Renderer = {
         _app.stage.addChild(mapSprite);
         initMap(mapBuf32, mapSrc);
 
-        // ── Food + overlay Graphics layers ────────────────────────────────────────
-        const { foodG, overlay } = createOverlayGraphics();
-        _app.stage.addChild(foodG);
+        // ── Food sprite layer ─────────────────────────────────────────────────────
+        const foodContainer = createFoodContainer();
+        _app.stage.addChild(foodContainer);
 
         // ── Entity layer ──────────────────────────────────────────────────────────
         const entities = new Container();
@@ -50,8 +50,17 @@ export const Renderer = {
         entities.addChild(prWingLayer);
         _app.stage.addChild(entities);
 
-        // ── Overlay (HP bars, carried items, nest ring) ───────────────────────────
-        _app.stage.addChild(overlay);
+        // ── Overlay sprite layer (HP bars, carried items, nest ring) ──────────────
+        const overlayContainer = createOverlayContainer();
+        _app.stage.addChild(overlayContainer);
+
+        // ── Pre-bake textures ─────────────────────────────────────────────────────
+        initFood(bakeTexture(_app, buildFoodPellet(), FOOD_SZ, FOOD_SZ, FOOD_CX, FOOD_CY));
+        initOverlay(
+            bakeTexture(_app, buildNestMarker(),  NEST_SZ,     NEST_SZ,     NEST_SZ / 2,     NEST_SZ / 2),
+            bakeTexture(_app, buildCarryFood(),   CARRY_FOOD_SZ, CARRY_FOOD_SZ, CARRY_FOOD_SZ / 2, CARRY_FOOD_SZ / 2),
+            bakeTexture(_app, buildCarryEgg(),    CARRY_EGG_W, CARRY_EGG_H, CARRY_EGG_W / 2, CARRY_EGG_H / 2),
+        );
 
         // ── Pre-bake all textures (3 animation frames per ant type) ──────────────
         const antTex = new Map<string, Texture>();

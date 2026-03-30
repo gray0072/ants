@@ -22,6 +22,25 @@ export const ANT_AY = ANT_CY / ANT_H;     // anchor Y fraction ≈ 0.625
 
 export const ENM_SZ = 64;   // enemy sprite (square, centre = 32,32)
 
+// Food pellet sprite — baked at DRAW_SCALE, body centre at (FOOD_CX, FOOD_CY).
+// FOOD_BASE_R is the body radius as a fraction of CELL (= max r at t=1).
+export const FOOD_SZ = 32;
+export const FOOD_CX = 14;
+export const FOOD_CY = 15;
+export const FOOD_BASE_R = 0.44;
+
+// Nest marker ring — baked at DRAW_SCALE (square, centre = SZ/2).
+export const NEST_SZ = 128;
+
+// Carried food pellet — baked at DRAW_SCALE (square, centre = SZ/2).
+// CARRY_FOOD_BASE_R is the ant-body r fraction at queen scale (max).
+export const CARRY_FOOD_SZ = 16;
+export const CARRY_FOOD_BASE_R = 0.55;
+
+// Carried egg (nurse) — baked at DRAW_SCALE, centre = (W/2, H/2).
+export const CARRY_EGG_W = 10;
+export const CARRY_EGG_H = 12;
+
 export const EGG_W = 24, EGG_H = 28;
 export const LAR_W = 36, LAR_H = 30;
 export const PUP_W = 30, PUP_H = 40;

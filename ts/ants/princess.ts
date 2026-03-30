@@ -1,7 +1,8 @@
 import { CONFIG } from '../config';
 import { STATE, Ant } from '../state';
 import { STATS } from '../stats';
-import { requestPath, requestPathSmart, followPath, reveal } from '../ant';
+import { reveal } from '../ant';
+import { requestPath, followPath } from '../path';
 import { MapModule } from '../map';
 
 export function startFlight(): boolean {
@@ -73,7 +74,7 @@ export function updatePrincess(ant: Ant): void {
         if (ant.wanderTimer < 0) { ant.wanderTimer++; return; }
         // Walk to surface exit
         if (ant.path.length === 0) {
-            requestPathSmart(ant, ant.targetCol!, ant.targetRow!);
+            requestPath(ant, ant.targetCol!, ant.targetRow!);
         }
         if (ant.path.length > 0) followPath(ant);
         // Arrived?
@@ -107,6 +108,8 @@ export function updatePrincess(ant: Ant): void {
         ant.path = [];
         ant.state = 'fly';
         ant.wanderTimer = 0;
+        ant.targetCol = ant.col
+        ant.targetRow = ant.row
         return;
     }
 
@@ -114,21 +117,21 @@ export function updatePrincess(ant: Ant): void {
     if (ant.state === 'fly') {
         ant.wanderTimer++;
         const n = ant.wanderTimer;
-        const t = n * CONFIG.TICK;   // seconds elapsed
+        const t = n / CONFIG.UPS;   // seconds elapsed
 
         const baseX = (ant.targetCol ?? STATE.nestCol) + 0.5;
         const baseY = (ant.targetRow ?? STATE.surfaceRows - 1) + 0.5;
 
         // Each ant gets a unique starting angle via golden-angle distribution
-        const a0 = (ant.id * 2.399963229) % (Math.PI * 2);
+        const a0 = ((baseX + baseY) * 2.399963229) % Math.PI * 0.8 + Math.PI * 0.1;
 
         // Mirror of intro spiral: radius grows from 0 (intro shrinks to 0)
         const spiral = (tt: number): { x: number; y: number } => {
-            const ts = Math.min(tt / 4.0, 1);
+            const ts = Math.min(tt / 4, 1);
             const r = 5.0 * Math.pow(ts, 0.8);
-            const a = a0 + 1.0 * Math.PI * 2 * ts;
-            const lift = Math.pow(Math.max(0, tt - 1.0), 2) * 4.0;
-            return { x: baseX + r * Math.cos(a), y: baseY - lift + r * Math.sin(a) * 0.2 };
+            const a = a0 + Math.PI * 4 * ts * ((baseX + baseY) % 2 - 1);
+            const rAway = Math.pow(Math.max(0, tt - 1.0), 2) * 4.0;
+            return { x: baseX + rAway * Math.cos(a0) + r * Math.cos(a), y: baseY - rAway * Math.sin(a0) + r * Math.sin(a) };
         };
 
         const pos = spiral(t);

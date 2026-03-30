@@ -1,16 +1,17 @@
 import { CONFIG } from '../config';
 import { STATE, WorkerAnt } from '../state';
 import { STATS } from '../stats';
-import { nearestFood, nearestVisibleEnemy, requestPath, requestPathSmart, followPath, updateFlightGuardStates, reveal, wander, dist } from '../ant';
+import { nearestFood, updateFlightGuardStates, reveal, wander, dist, nearestVisibleEnemy, tryAttack } from '../ant';
+import { requestPath, followPath } from '../path';
 
 export function updateWorker(ant: WorkerAnt): void {
     reveal(ant);
     if (ant.attackCooldown > 0) ant.attackCooldown--;
 
-    if (updateFlightGuardStates(ant, CONFIG.WORKER_ATTACK_RANGE, CONFIG.WORKER_ATTACK_COOLDOWN)) return;
+    if (updateFlightGuardStates(ant)) return;
 
-    // Flee if enemy within radius 4 — run to queen
     const threat = nearestVisibleEnemy(ant);
+    // Flee if enemy within flee radius — run to queen
     if (ant.state !== 'flee' && threat && dist(ant.col, ant.row, threat.col, threat.row) <= CONFIG.WORKER_FLEE_RADIUS) {
         ant.state = 'flee';
         ant.path = [];
@@ -19,24 +20,21 @@ export function updateWorker(ant: WorkerAnt): void {
     if (ant.state === 'flee') {
         // No threats left → resume work
         if (!threat || dist(ant.col, ant.row, threat.col, threat.row) > CONFIG.WORKER_FLEE_CLEAR) {
-            ant.state = ant.carrying > 0 ? 'return' : 'forage';
+            ant.state = ant.carriedFood > 0 ? 'return' : 'forage';
             ant.path = [];
             return;
         }
         // Path to throne
         const tc = STATE.nestCol, tr = STATE.nestRow - 1;
-        const atPost = dist(ant.col, ant.row, tc, tr) < 0.6;
-        if (!atPost) {
-            if (!ant.path?.length) requestPath(ant, tc, tr);
-            followPath(ant);
-        } else {
+
+        if (!ant.path?.length) {
+            requestPath(ant, tc, tr);
+        }
+        const done = followPath(ant);
+        if (done) {
             // At post — face up and fight back
             ant.angle = -Math.PI / 2;
-            const d = dist(ant.col, ant.row, threat.col, threat.row);
-            if (d <= CONFIG.WORKER_ATTACK_RANGE && ant.attackCooldown === 0) {
-                threat.hp -= ant.damage;
-                ant.attackCooldown = CONFIG.WORKER_ATTACK_COOLDOWN;
-            }
+            tryAttack(ant, threat);
         }
         return;
     }
@@ -44,7 +42,7 @@ export function updateWorker(ant: WorkerAnt): void {
     if (ant.state === 'forage') {
         if (!ant.path?.length) {
             const food = nearestFood(ant);
-            if (food) requestPathSmart(ant, food[0], food[1]);
+            if (food) requestPath(ant, food[0], food[1]);
             else { wander(ant); return; }
         }
         const done = followPath(ant);
@@ -55,7 +53,7 @@ export function updateWorker(ant: WorkerAnt): void {
                 const take = Math.min(CONFIG.CARRY_AMOUNT, STATE.foodGrid[i]);
                 STATE.foodGrid[i] -= take;
                 if (STATE.foodGrid[i] === 0) STATE.foodCells.delete(i);
-                ant.carrying = take;
+                ant.carriedFood = take;
                 ant.state = 'return';
                 ant.path = [];
             } else {
@@ -64,13 +62,13 @@ export function updateWorker(ant: WorkerAnt): void {
         }
     } else if (ant.state === 'return') {
         if (dist(ant.col, ant.row, STATE.nestCol, STATE.nestRow) <= CONFIG.WORKER_DEPOSIT_RANGE) {
-            STATS.totalFoodCollected += ant.carrying;
-            STATE.food += ant.carrying;
-            ant.carrying = 0;
+            STATS.totalFoodCollected += ant.carriedFood;
+            STATE.food += ant.carriedFood;
+            ant.carriedFood = 0;
             ant.state = 'forage';
             ant.path = [];
         } else {
-            if (!ant.path?.length) requestPathSmart(ant, STATE.nestCol, STATE.nestRow);
+            if (!ant.path?.length) requestPath(ant, STATE.nestCol, STATE.nestRow);
             followPath(ant);
         }
     }

@@ -17,6 +17,7 @@ body {
 
 #site-header {
     display: flex;
+    justify-content: center;
     align-items: center;
     gap: 12px;
     margin-bottom: 10px;
@@ -72,6 +73,8 @@ h1 {
 
 #game-canvas {
     display: block;
+    width: 960px;
+    height: 720px;
 }
 
 /* HUD Panel */
@@ -565,8 +568,10 @@ h1 {
     text-transform: uppercase;
 }
 
-#btn-restart:hover {
+#btn-restart:hover,
+#btn-restart.focused {
     background: #5a3820;
+    outline: 1px solid #e8c88a;
 }
 
 #modal-stats {
@@ -610,8 +615,10 @@ h1 {
     text-transform: uppercase;
 }
 
-#btn-survival:hover {
+#btn-survival:hover,
+#btn-survival.focused {
     background: #204a18;
+    outline: 1px solid #b0e870;
 }
 
 #btn-survival.hidden {
@@ -710,3 +717,65 @@ h1 {
         min-width: 240px;
     }
 }
+
+/* ── Bench panel ─────────────────────────────────────────────────── */
+#bench-bar {
+    display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap;
+    background: #120d08; border: 1px solid #3a2a18; border-radius: 4px;
+    padding: 10px 14px; margin-bottom: 10px; width: 100%; max-width: 1388px;
+}
+
+.bench-group { display: flex; flex-direction: column; gap: 6px; }
+.bench-group-title { font-size: 0.7rem; color: #8a7a5a; text-transform: uppercase; letter-spacing: 1px; }
+
+.bench-scenario-cols { display: flex; gap: 16px; }
+.bench-col { display: flex; flex-direction: column; gap: 6px; }
+
+.bench-row { display: flex; align-items: center; gap: 8px; }
+.bench-row label { color: #a09070; font-size: 0.8rem; width: 76px; flex-shrink: 0; }
+.bench-row input[type=number] {
+    width: 54px; background: #1e1509; border: 1px solid #4a3a28; color: #d4b896;
+    font-family: 'Courier New', monospace; font-size: 0.8rem; padding: 2px 5px; text-align: right;
+    -moz-appearance: textfield; appearance: textfield;
+}
+.bench-row input[type=number]::-webkit-outer-spin-button,
+.bench-row input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.bench-spin { display: flex; align-items: center; gap: 2px; }
+.bench-spin-btn {
+    background: #1e1509; border: 1px solid #4a3a28; color: #8a7a5a;
+    font-family: 'Courier New', monospace; font-size: 0.75rem; line-height: 1;
+    padding: 1px 5px; cursor: pointer; border-radius: 2px; user-select: none;
+}
+.bench-spin-btn:hover { background: #2e2010; border-color: #7a6040; color: #c8a870; }
+.bench-row input[type=checkbox] {
+    appearance: none; -webkit-appearance: none;
+    width: 13px; height: 13px; cursor: pointer; flex-shrink: 0;
+    background: #1e1509; border: 1px solid #7a5230; border-radius: 2px;
+    position: relative; vertical-align: middle;
+}
+.bench-row input[type=checkbox]:checked {
+    background: #3a2410; border-color: #c8914a;
+}
+.bench-row input[type=checkbox]:checked::after {
+    content: ''; position: absolute; left: 3px; top: 0px;
+    width: 4px; height: 8px;
+    border: 2px solid #c8914a; border-top: none; border-left: none;
+    transform: rotate(45deg);
+}
+.bench-row input[type=checkbox] + label { width: auto; cursor: pointer; color: #c4a878; }
+.bench-limit { color: #6a5a40; font-size: 0.75rem; }
+
+.bench-actions { display: flex; flex-direction: column; gap: 6px; align-self: flex-end; }
+.bench-stop { background: #7a2a20; border-color: #aa4a3a; }
+
+#bench-perf {
+    align-self: flex-end; font-size: 0.78rem; line-height: 1.6;
+    color: #8aba68; white-space: pre; min-width: 200px;
+}
+
+/* ── HUD column + perf strip ─────────────────────────────────────── */
+#hud-col { display: flex; flex-direction: column; gap: 4px; }
+#hud-perf { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 0 2px; }
+.perf-item { font-size: 0.7rem; color: #6a9a50; white-space: nowrap; }
+.bench-open-btn { font-size: 0.7rem; padding: 1px 8px; margin-left: auto; flex-shrink: 0; }

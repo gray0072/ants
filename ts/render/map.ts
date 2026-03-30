@@ -2,6 +2,7 @@ import { BufferImageSource } from 'pixi.js';
 import { CONFIG } from '../config';
 import { STATE, CellType } from '../state';
 import { CELL, MAP_W, MAP_H, pack } from './constants';
+import { hasIntroData } from './intro';
 
 // ─── Terrain noise (pre-baked at init) ───────────────────────────────────────
 
@@ -138,7 +139,7 @@ export function updateMap(): void {
         for (let col = 0; col < COLS; col++) {
             const ci = row * COLS + col;
             const ctId = _CELL_ID[STATE.map[ci]] ?? 0;
-            const fogV = fog[ci];
+            const fogV = hasIntroData() ? 1 : fog[ci];
 
             // Rebuild lit pixels only when cell type changes (e.g. tunnel dug).
             if (_prevCellType[ci] !== ctId) {

@@ -1,7 +1,6 @@
 export const CONFIG = {
     // Timing
     UPS: 60,
-    TICK: 1 / 60,
 
     PERF_DEBUG: false,
     FOOD_DEBUG: false,
@@ -17,7 +16,8 @@ export const CONFIG = {
     NEST_DEPTH: 5,
 
     // Nest layout (chambers)
-    QUEEN_CHAMBER_HALF_W: 2,
+    QUEEN_CHAMBER_HALF_W_INIT: 1,
+    QUEEN_CHAMBER_HALF_W_STEP: 1,
     QUEEN_CHAMBER_HALF_H: 1,
     CHAMBER_RADIUS: 1,
     CHAMBER_STEP: 8,
@@ -64,10 +64,11 @@ export const CONFIG = {
     // Queen & upkeep
     QUEEN_HP: 200,
     QUEEN_SPEED: 0.04,
+    QUEEN_REVEAL_RADIUS: 3,
 
     // Nurse
     NURSE_HP: 20,
-    NURSE_SPEED: 0.06,
+    NURSE_SPEED: 0.07,
     NURSE_REVEAL_RADIUS: 2,
     COST_NURSE: 10,
     COLONY_UPKEEP_INTERVAL: 300,
@@ -80,8 +81,8 @@ export const CONFIG = {
     WORKER_SPEED: 0.06,
     SOLDIER_SPEED: 0.08,
     SCOUT_SPEED: 0.10,
-    WORKER_REVEAL_RADIUS: 2,
-    SOLDIER_REVEAL_RADIUS: 2,
+    WORKER_REVEAL_RADIUS: 3,
+    SOLDIER_REVEAL_RADIUS: 3,
     SCOUT_REVEAL_RADIUS: 6,
     EGG_TICKS: 360,
     LARVA_TICKS: 600,
@@ -120,6 +121,7 @@ export const CONFIG = {
     ENEMY_SPAWN_COUNT: 2,
     ENEMY_WAVE_SCALE: 1.05,
     ENEMY_MAX: 400,
+    ENEMY_ATTACK_RANGE: 1.5,
     BEETLE_HP: 20,
     BEETLE_DAMAGE: 3,
     BEETLE_SPEED: 0.04,
