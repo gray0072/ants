@@ -776,6 +776,8 @@ h1 {
 
 /* ── HUD column + perf strip ─────────────────────────────────────── */
 #hud-col { display: flex; flex-direction: column; gap: 4px; }
-#hud-perf { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 0 2px; }
+#hud-perf { display: flex; justify-content: space-between; align-items: center; padding: 0 2px; }
+.hud-perf-items { display: flex; gap: 10px; margin-right: 20px; }
+.hud-perf-buttons { display: flex; gap: 4px; }
 .perf-item { font-size: 0.7rem; color: #6a9a50; white-space: nowrap; }
-.bench-open-btn { font-size: 0.7rem; padding: 1px 8px; margin-left: auto; flex-shrink: 0; }
+.bench-open-btn { font-size: 0.7rem; padding: 1px 8px; flex-shrink: 0; }

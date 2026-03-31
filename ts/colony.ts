@@ -4,6 +4,7 @@ import { startFlight as princessStartFlight } from './ants/princess';
 import { FogModule } from './fog';
 import { createAnt } from './ant';
 import { MapModule } from './map';
+import { aiDecideAndOrder } from './ai';
 
 let _autoSpawnTurn = 0;
 
@@ -97,6 +98,7 @@ export const ColonyModule = {
         setAntsCount('nurse', STATE.chamberPositions.length - 1);
         setAntsCount('princess', CONFIG.PRINCESS_LIMIT);
         STATE.wave = 80;
+        STATE.autoAI = false;
     },
 
     setAntsCount(type: AntType, toAmount: number): void {
@@ -245,25 +247,29 @@ export const ColonyModule = {
 
         if ((STATE.queen.eggQueue?.length ?? 0) > 0) return;
 
-        const types = (['worker', 'soldier', 'scout', 'nurse', 'princess'] as const).filter(t => STATE.autoSpawn[t]);
-        if (types.length === 0) return;
+        if (STATE.autoAI) {
+            aiDecideAndOrder();
+        } else {
+            const types = (['worker', 'soldier', 'scout', 'nurse', 'princess'] as const).filter(t => STATE.autoSpawn[t]);
+            if (types.length === 0) return;
 
-        _autoSpawnTurn = _autoSpawnTurn % types.length;
-        let type = types[_autoSpawnTurn];
+            _autoSpawnTurn = _autoSpawnTurn % types.length;
+            let type = types[_autoSpawnTurn];
 
-        if (type === 'nurse' && !STATE.canSpawnNurse) {
-            _autoSpawnTurn = (_autoSpawnTurn + 1) % types.length;
-            type = types[_autoSpawnTurn];
-            if (type === 'nurse') return;
-        }
-        if (type === 'princess' && !STATE.canSpawnPrincess) {
-            _autoSpawnTurn = (_autoSpawnTurn + 1) % types.length;
-            type = types[_autoSpawnTurn];
-            if (type === 'princess') return;
-        }
+            if (type === 'nurse' && !STATE.canSpawnNurse) {
+                _autoSpawnTurn = (_autoSpawnTurn + 1) % types.length;
+                type = types[_autoSpawnTurn];
+                if (type === 'nurse') return;
+            }
+            if (type === 'princess' && !STATE.canSpawnPrincess) {
+                _autoSpawnTurn = (_autoSpawnTurn + 1) % types.length;
+                type = types[_autoSpawnTurn];
+                if (type === 'princess') return;
+            }
 
-        if (this.orderAnt(type)) {
-            _autoSpawnTurn = (_autoSpawnTurn + 1) % types.length;
+            if (this.orderAnt(type)) {
+                _autoSpawnTurn = (_autoSpawnTurn + 1) % types.length;
+            }
         }
     },
 };

@@ -38,6 +38,7 @@ export interface UIStore {
     cntPrincess: number;
 
     btnDisabled: Record<string, boolean>;
+    autoAI: boolean;
     autoSpawn: AutoSpawn;
     autoBuild: AutoBuild;
     autoAction: AutoAction;
@@ -89,9 +90,10 @@ export const [store, setStore] = createStore<UIStore>({
     queenHpPct: 100, eggQueue: [],
     cntWorker: 0, cntSoldier: 0, cntScout: 0, cntNurse: 0, cntPrincess: 0,
     btnDisabled: {},
-    autoSpawn: { worker: false, soldier: false, scout: false, nurse: false, princess: false },
-    autoBuild: { chamber: false, expand: false },
-    autoAction: { flight: false },
+     autoAI: false,
+     autoSpawn: { worker: false, soldier: false, scout: false, nurse: false, princess: false },
+     autoBuild: { chamber: false, expand: false },
+     autoAction: { flight: false },
     chamberMaxed: false, expandMaxed: false, chamberCost: 0, expandCost: 0,
     surfaceRows: 0, chambers: 0,
     queenAlive: true, chambersReached: false, surfaceReached: false, princessesReached: false,
@@ -185,6 +187,11 @@ export function toggleAutoAction(type: AutoActionType): void {
     setStore('autoAction', type, STATE.autoAction[type]);
 }
 
+export function toggleAI(): void {
+    STATE.autoAI = !STATE.autoAI;
+    setStore('autoAI', STATE.autoAI);
+}
+
 export function update(): void {
     const pending = STATE.queen?.eggQueue ?? [];
     const pop = STATE.ants.length + pending.length;
@@ -249,13 +256,14 @@ export function update(): void {
 }
 
 export function reset(): void {
-    batch(() => {
-        setStore('autoSpawn', { worker: false, soldier: false, scout: false, nurse: false, princess: false });
-        setStore('autoBuild', { chamber: false, expand: false });
-        setStore('autoAction', { flight: false });
-        setStore('speed', 1);
-        setStore('queenHpPct', 200);
-    });
+     batch(() => {
+         setStore('autoAI', false);
+         setStore('autoSpawn', { worker: false, soldier: false, scout: false, nurse: false, princess: false });
+         setStore('autoBuild', { chamber: false, expand: false });
+         setStore('autoAction', { flight: false });
+         setStore('speed', 1);
+         setStore('queenHpPct', 200);
+     });
 }
 
 export function setGameActive(): void {

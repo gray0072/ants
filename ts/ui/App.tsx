@@ -7,7 +7,7 @@ import { ColonyModule } from '../colony';
 import { MapModule } from '../map';
 import {
     setSpeed, togglePause, toggleAutoSpawn, toggleAutoBuild, toggleAutoAction,
-    triggerIntroStart, triggerSurvival, changeDifficulty, restartGame, toggleBench,
+    triggerIntroStart, triggerSurvival, changeDifficulty, restartGame, toggleBench, toggleAI,
 } from './store';
 import type { AntType } from '../state';
 import BenchPanel from './BenchPanel';
@@ -358,14 +358,19 @@ export default function App() {
                 </div>
                 <div id="hud-col">
                     <Hud />
-                    <Show when={!store.showBench}>
-                        <div id="hud-perf">
-                            <span class="perf-item">upd {store.perfUpdate.toFixed(1)} ms</span>
-                            <span class="perf-item">rnd {store.perfRender.toFixed(1)} ms</span>
-                            <span class="perf-item">~{(store.perfUpdate + store.perfRender) > 0.5 ? Math.round(1000 / (store.perfUpdate + store.perfRender)) : '—'} fps</span>
-                            <button class="btn bench-open-btn" onClick={toggleBench}><span class="hotkey">B</span> Bench</button>
-                        </div>
-                    </Show>
+                     <Show when={!store.showBench}>
+                         <div id="hud-perf">
+                             <div class="hud-perf-items">
+                                 <span class="perf-item">upd {store.perfUpdate.toFixed(1)} ms</span>
+                                 <span class="perf-item">rnd {store.perfRender.toFixed(1)} ms</span>
+                                 <span class="perf-item">~{(store.perfUpdate + store.perfRender) > 0.5 ? Math.round(1000 / (store.perfUpdate + store.perfRender)) : '—'} fps</span>
+                             </div>
+                             <div class="hud-perf-buttons">
+                                 <button class="btn bench-open-btn" onClick={toggleBench}><span class="hotkey">B</span> Bench</button>
+                                 <button classList={{ 'btn': true, 'ai-btn': true, 'btn-auto': store.autoAI, 'bench-open-btn': true }} onClick={toggleAI}><span class="hotkey">I</span> AI <span class="spawn-auto">⟳</span></button>
+                             </div>
+                         </div>
+                     </Show>
                 </div>
             </div>
         </>

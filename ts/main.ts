@@ -83,9 +83,15 @@ const GameMain = (() => {
         STATS.reset();
         MapModule.init();
 
+        // Reveal initial area around nest for intro visibility
+        const nc = STATE.nestCol, nr = STATE.nestRow, surf = STATE.surfaceRows;
+        FogModule.revealArea(nc, nr, 5);
+        for (let r = surf - 1; r <= nr; r++) FogModule.revealArea(nc, r, 2);
+        FogModule.revealArea(nc, Math.floor(surf / 2), 8);
+
         IntroModule.play(() => {
             UIModule.showIntroModal(startGame);
-        });
+        }, () => Renderer.render());
     }
 
     function startSurvival(): void {

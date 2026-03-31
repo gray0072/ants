@@ -333,7 +333,4 @@ export const AntModule = {
         if (STATE.ants.length > STATS.maxAnts) STATS.maxAnts = STATE.ants.length;
         if (!STATE.queen) { endGame(false); return; }
     },
-
-    dist: dist,
-    dist2: dist2,
 };

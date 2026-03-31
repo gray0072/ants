@@ -136,6 +136,7 @@ export interface GameState {
     completedFlights: number;
 
     // Auto flags (source of truth for game logic)
+    autoAI: boolean;
     autoSpawn: Record<'worker' | 'soldier' | 'scout' | 'nurse' | 'princess', boolean>;
     autoBuild: Record<'chamber' | 'expand', boolean>;
     autoAction: Record<'flight', boolean>;
@@ -193,6 +194,7 @@ export const STATE: GameState = {
     completedFlights: 0,
 
     // Auto flags
+    autoAI: false,
     autoSpawn: { worker: false, soldier: false, scout: false, nurse: false, princess: false },
     autoBuild: { chamber: false, expand: false },
     autoAction: { flight: false },
@@ -234,6 +236,7 @@ export const STATE: GameState = {
         this.flightTotal = 0;
         this.flightEscaped = 0;
         this.completedFlights = 0;
+        this.autoAI = false;
         this.autoSpawn = { worker: false, soldier: false, scout: false, nurse: false, princess: false };
         this.autoBuild = { chamber: false, expand: false };
         this.autoAction = { flight: false };

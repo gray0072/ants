@@ -42,6 +42,7 @@ export function startRenderBench(
 ): () => void {
     setup(opts);
     syncStore();
+    setStore('autoAI', STATE.autoAI);
     setStore('autoSpawn', { ...STATE.autoSpawn });
 
     const FIXED_STEP = 1000 / CONFIG.UPS;

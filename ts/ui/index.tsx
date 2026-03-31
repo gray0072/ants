@@ -8,7 +8,7 @@ import {
     setSpeed, togglePause, toggleAutoSpawn, toggleAutoBuild, toggleAutoAction,
     store, setStore, toggleLang,
     changeDifficulty, triggerIntroStart, triggerSurvival, restartGame,
-    registerGameCallbacks, setPerfMetrics, toggleBench,
+    registerGameCallbacks, setPerfMetrics, toggleBench, toggleAI,
 } from './store';
 import { STATE } from '../state';
 import { getLang } from '../i18n';
@@ -23,6 +23,9 @@ export const UIModule = {
         document.addEventListener('keydown', (ev) => {
             if (ev.code === 'KeyB' && !store.showBench) {
                 toggleBench(); return;
+            }
+            if (ev.code === 'KeyI' && !store.showBench) {
+                toggleAI(); return;
             }
             if (store.showIntro) {
                 const diffs: Difficulty[] = ['easy', 'medium', 'hard'];

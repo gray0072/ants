@@ -15,7 +15,7 @@ const DIG_MS    = 1100;   // descend to chamber
 let _introCleanup: (() => void) | null = null;
 
 export const IntroModule = {
-  play(onDone: () => void): void {
+  play(onDone: () => void, render?: () => void): void {
     const nestX  = STATE.nestCol * CELL + CELL / 2;
     const nestY  = STATE.nestRow * CELL + CELL / 2;
 
@@ -150,7 +150,7 @@ export const IntroModule = {
         if (t >= 1) { cleanup(); onDone(); return; }
       }
 
-      Renderer.render();
+      if (render) render(); else Renderer.render();
       rafId = requestAnimationFrame(frame);
     }
 
