@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Ant Colony</title>
+  <link rel="icon" type="image/svg+xml" href="/ants/assets/favicon-CMeS4R5W.svg">
+  <script type="module" crossorigin src="/ants/assets/mobile-DYqkvYMe.js"></script>
+  <link rel="modulepreload" crossorigin href="/ants/assets/perf-CjRBc0PP.js">
+  <link rel="stylesheet" crossorigin href="/ants/assets/mobile-C-7BkV8U.css">
+</head>
+<body>
+  <div id="mobile-app">
+    <!-- Status Bar -->
+    <div id="status-bar">
+      <span class="stat-item">🍒 <span class="stat-val" id="food-val">0</span></span>
+      <span class="stat-item">👥 <span class="stat-val" id="pop-val">0/0</span></span>
+      <span class="stat-item">W<span class="stat-val" id="wave-val">0</span></span>
+      <span class="stat-item">
+        👑
+        <span id="queen-hp-mini"><span id="queen-hp-mini-fill" style="width:100%"></span></span>
+      </span>
+      <button id="lang-btn" style="background:none;border:1px solid #5a3a1a;color:#8a6a4a;font-family:inherit;font-size:0.65rem;padding:2px 6px;border-radius:3px;cursor:pointer">EN</button>
+    </div>
+
+    <!-- Canvas Area -->
+    <div id="canvas-area">
+      <canvas id="game-canvas"></canvas>
+      <a id="desktop-link" href="index.html">Desktop</a>
+
+      <!-- Intro Modal -->
+      <div id="intro-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+          <div class="modal-title">🐜 Ant Colony</div>
+          <ul id="intro-goals" class="modal-goals"></ul>
+          <div id="diff-row" class="diff-row"></div>
+          <div id="difficulty-desc" class="modal-hint"></div>
+          <div id="intro-hint" class="modal-hint"></div>
+          <button id="intro-modal-ok" class="modal-btn">Start</button>
+        </div>
+      </div>
+
+      <!-- Game Over Modal -->
+      <div id="gameover-modal" class="modal-overlay hidden">
+        <div class="modal-box gameover-box">
+          <div id="go-title" class="gameover-title">Defeat</div>
+          <div id="go-msg" class="gameover-msg"></div>
+          <div class="gameover-stats">
+            <div class="stat-row"><span class="stat-label" id="go-l-max">Peak</span><span class="stat-val" id="go-max-ants">0</span></div>
+            <div class="stat-row"><span class="stat-label" id="go-l-prod">Raised</span><span class="stat-val" id="go-produced">0</span></div>
+            <div class="stat-row"><span class="stat-label" id="go-l-food">Food</span><span class="stat-val" id="go-food">0</span></div>
+            <div class="stat-row"><span class="stat-label" id="go-l-kills">Kills</span><span class="stat-val" id="go-kills">0</span></div>
+            <div class="stat-row"><span class="stat-label" id="go-l-pr">Princesses</span><span class="stat-val" id="go-princesses">0</span></div>
+            <div class="stat-row"><span class="stat-label" id="go-l-stars">Flights</span><span class="stat-val" id="go-stars">0</span></div>
+          </div>
+          <button id="btn-survival" class="modal-btn btn-survival hidden">Continue</button>
+          <button id="btn-restart" class="modal-btn btn-restart">Restart</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HUD Drawer -->
+    <button id="drawer-toggle">☰</button>
+    <div id="hud-drawer">
+      <div class="drawer-section">
+        <div class="drawer-title">Spawn</div>
+        <div id="spawn-grid" class="spawn-grid"></div>
+      </div>
+      <div class="drawer-section">
+        <div class="drawer-title">Build</div>
+        <div id="build-grid" class="build-grid"></div>
+      </div>
+      <div class="drawer-section drawer-buttons-row">
+        <button id="flight-btn" class="flight-btn"></button>
+        <button id="drawer-close" class="drawer-close">✕ Close</button>
+      </div>
+      <div class="drawer-section" id="flight-section"></div>
+    </div>
+
+    <!-- Speed Bar -->
+    <div id="speed-bar">
+      <button class="speed-btn" data-speed="0">⏸</button>
+      <button class="speed-btn active" data-speed="1">1×</button>
+      <button class="speed-btn" data-speed="2">2×</button>
+      <button class="speed-btn" data-speed="4">4×</button>
+      <button class="speed-btn" data-speed="8">8×</button>
+    </div>
+  </div>
+
+</body>
+</html>
