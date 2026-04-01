@@ -10,8 +10,9 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       input: {
-        main:  'index.html',
+        main:   'index.html',
         mobile: 'mobile.html',
+        learn:  'learn.html',
       },
     },
   },

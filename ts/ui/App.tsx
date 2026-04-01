@@ -58,6 +58,7 @@ function Header() {
             <button id="lang-btn" title="Language">EN</button>
             <nav id="header-nav">
                 <a href="mobile.html">Mobile</a>
+                <a href="learn.html">Learn</a>
             </nav>
             <a id="github-link" href="https://github.com/gray0072/ants" target="_blank" rel="noopener noreferrer" title="View on GitHub">
                 <svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="currentColor">

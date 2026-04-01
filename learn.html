@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ant Colony — Learn</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="learn.css">
+</head>
+<body>
+
+<h1>Ant Colony — Parameter Learner</h1>
+
+<div class="controls">
+  <button id="btn-start">▶ Start</button>
+  <button id="btn-stop" disabled>■ Stop</button>
+  <button id="btn-reset" class="danger">↺ Reset best</button>
+  <div id="status">idle</div>
+  <nav class="nav-links">
+    <a href="index.html">← Main</a>
+    <a href="mobile.html">Mobile</a>
+  </nav>
+</div>
+
+<div class="stats">
+  Iterations: <span id="iter-count">0</span>
+  &nbsp;|&nbsp;
+  Last score: <span id="last-score">—</span>
+  &nbsp;|&nbsp;
+  Best score: <span id="best-score">—</span>
+</div>
+<div class="best-result" id="best-result"></div>
+
+<table>
+  <thead>
+    <tr>
+      <th>param</th>
+      <th>original</th>
+      <th class="col-current">current</th>
+      <th class="col-best">best</th>
+    </tr>
+  </thead>
+  <tbody id="params-body"></tbody>
+</table>
+
+<p class="note">
+  Hard difficulty, survival mode, ~1500 ticks/frame.<br>
+  Each run evaluates one candidate; the best is kept in localStorage and mutated for the next run.<br>
+  Score = flights × 1000 + wave.
+</p>
+
+<script type="module" src="./ts/learn/learn-main.ts"></script>
+</body>
+</html>

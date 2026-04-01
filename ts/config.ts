@@ -4,7 +4,9 @@ export const CONFIG = {
     // Timing
     UPS: 60,
 
+    // Debug switch: open full surface, dig all chambers, add ants and money.
     PERF_DEBUG: false,
+    // Debug switch: start with unlimited food (999 999).
     FOOD_DEBUG: false,
 
     // Map
