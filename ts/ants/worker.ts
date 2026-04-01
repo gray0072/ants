@@ -1,7 +1,7 @@
 import { CONFIG } from '../config';
 import { STATE, WorkerAnt } from '../state';
 import { STATS } from '../stats';
-import { nearestFood, updateFlightGuardStates, reveal, wander, dist, nearestVisibleEnemy, tryAttack } from '../ant';
+import { nearestFood, updateFlightGuardStates, reveal, wander, dist2, nearestVisibleEnemy, tryAttack } from '../ant';
 import { requestPath, followPath } from '../path';
 
 export function updateWorker(ant: WorkerAnt): void {
@@ -12,14 +12,14 @@ export function updateWorker(ant: WorkerAnt): void {
 
     const threat = nearestVisibleEnemy(ant);
     // Flee if enemy within flee radius — run to queen
-    if (ant.state !== 'flee' && threat && dist(ant.col, ant.row, threat.col, threat.row) <= CONFIG.WORKER_FLEE_RADIUS) {
+    if (ant.state !== 'flee' && threat && dist2(ant.col, ant.row, threat.col, threat.row) <= CONFIG.WORKER_FLEE_RADIUS * CONFIG.WORKER_FLEE_RADIUS) {
         ant.state = 'flee';
         ant.path = [];
     }
 
     if (ant.state === 'flee') {
         // No threats left → resume work
-        if (!threat || dist(ant.col, ant.row, threat.col, threat.row) > CONFIG.WORKER_FLEE_CLEAR) {
+        if (!threat || dist2(ant.col, ant.row, threat.col, threat.row) > CONFIG.WORKER_FLEE_CLEAR * CONFIG.WORKER_FLEE_CLEAR) {
             ant.state = ant.carriedFood > 0 ? 'return' : 'forage';
             ant.path = [];
             return;
@@ -49,7 +49,7 @@ export function updateWorker(ant: WorkerAnt): void {
         if (done) {
             const c = Math.floor(ant.col), r = Math.floor(ant.row);
             const i = STATE.idx(c, r);
-            if (STATE.foodGrid && STATE.foodGrid[i] > 0) {
+            if (STATE.foodGrid[i] > 0) {
                 const take = Math.min(CONFIG.CARRY_AMOUNT, STATE.foodGrid[i]);
                 STATE.foodGrid[i] -= take;
                 if (STATE.foodGrid[i] === 0) STATE.foodCells.delete(i);
@@ -61,7 +61,7 @@ export function updateWorker(ant: WorkerAnt): void {
             }
         }
     } else if (ant.state === 'return') {
-        if (dist(ant.col, ant.row, STATE.nestCol, STATE.nestRow) <= CONFIG.WORKER_DEPOSIT_RANGE) {
+        if (dist2(ant.col, ant.row, STATE.nestCol, STATE.nestRow) <= CONFIG.WORKER_DEPOSIT_RANGE * CONFIG.WORKER_DEPOSIT_RANGE) {
             STATS.totalFoodCollected += ant.carriedFood;
             STATE.food += ant.carriedFood;
             ant.carriedFood = 0;

@@ -4,8 +4,8 @@ import {
 } from 'pixi.js';
 import { CONFIG } from '../config';
 import { AntType } from '../state';
-import { MAP_W, MAP_H, ANT_W, ANT_H, ANT_CX, ANT_CY, ENM_SZ, EGG_W, EGG_H, LAR_W, LAR_H, PUP_W, PUP_H, FOOD_SZ, FOOD_CX, FOOD_CY, NEST_SZ, CARRY_FOOD_SZ, CARRY_EGG_W, CARRY_EGG_H } from '../render/constants';
-import { buildAnt, buildBeetle, buildSpider, buildEgg, buildLarva, buildPupa, buildFoodPellet, buildNestMarker, buildCarryFood, buildCarryEgg, bakeTexture } from '../render/builders';
+import { MAP_W, MAP_H, ANT_W, ANT_H, ANT_CX, ANT_CY, ENM_SZ, EGG_W, EGG_H, LAR_W, LAR_H, PUP_W, PUP_H, FOOD_SZ, FOOD_CX, FOOD_CY, NEST_SZ, CARRY_FOOD_SZ, CARRY_EGG_W, CARRY_EGG_H, WING_FRAMES, WING_W, WING_H, WING_CX, WING_CY } from '../render/constants';
+import { buildAnt, buildBeetle, buildSpider, buildEgg, buildLarva, buildPupa, buildFoodPellet, buildNestMarker, buildCarryFood, buildCarryEgg, buildWingFrame, bakeTexture } from '../render/builders';
 import { initMap, updateMap } from '../render/map';
 import { initEntities, updateEntities } from '../render/entities';
 import { createFoodContainer, initFood, createOverlayContainer, initOverlay, updateFood, updateOverlay } from '../render/overlay';
@@ -84,7 +84,13 @@ export const MobileRenderer = {
         const larvaTex = bakeTexture(_app, buildLarva(), LAR_W, LAR_H, LAR_W / 2, LAR_H / 2);
         const pupaTex = bakeTexture(_app, buildPupa(), PUP_W, PUP_H, PUP_W / 2, PUP_H / 2);
 
-        initEntities(adultsLayer, stagesLayer, prWingLayer, antTex, enmTex, eggTex, larvaTex, pupaTex);
+        const wingTextures: Texture[] = [];
+        for (let i = 0; i < WING_FRAMES; i++) {
+            const f = 0.55 + 0.45 * (i / (WING_FRAMES - 1));
+            wingTextures.push(bakeTexture(_app, buildWingFrame(f), WING_W, WING_H, WING_CX, WING_CY));
+        }
+
+        initEntities(adultsLayer, stagesLayer, prWingLayer, antTex, enmTex, eggTex, larvaTex, pupaTex, wingTextures);
 
         // Intro layer
         const { fallenWingsG, wingsG, queenSpr } = createIntroLayers(antTex.get('queen_1')!);

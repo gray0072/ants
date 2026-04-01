@@ -1,14 +1,15 @@
-import { Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { Container, Sprite, Texture } from 'pixi.js';
 import { STATE, AntType } from '../state';
-import { CELL, DISP, ANT_AY, ANT_HEX } from './constants';
-
-interface PrWingEntry { container: Container; g: Graphics; }
+import { CELL, DISP, ANT_AY, ANT_HEX, WING_CX, WING_W, WING_CY, WING_H } from './constants';
 
 let _adultsLayer: Container;
 let _stagesLayer: Container;
 let _prWingLayer: Container;
 
-let _antTex: Map<string, Texture>;
+// Flat array: _antTexFlat[typeIdx * 3 + frame] — avoids Map lookup + string concat per ant per frame
+const _ANT_TYPE_IDX: Record<AntType, number> = { worker: 0, soldier: 1, scout: 2, queen: 3, nurse: 4, princess: 5 };
+let _antTexFlat: Texture[];
+let _wingTexFlat: Texture[];
 let _enmTex: Map<string, Texture>;
 let _eggTex: Texture;
 let _larvaTex: Texture;
@@ -17,7 +18,7 @@ let _pupaTex: Texture;
 const _antPool: Sprite[] = [];
 const _stagePool: Sprite[] = [];
 const _enmPool: Sprite[] = [];
-const _prWingPool: PrWingEntry[] = [];
+const _prWingPool: Sprite[] = [];
 
 let _animTick = 0;
 
@@ -30,11 +31,19 @@ export function initEntities(
     eggTex: Texture,
     larvaTex: Texture,
     pupaTex: Texture,
+    wingTextures: Texture[],
 ): void {
     _adultsLayer = adultsLayer;
     _stagesLayer = stagesLayer;
     _prWingLayer = prWingLayer;
-    _antTex = antTex;
+    _antTexFlat = new Array(6 * 3).fill(Texture.EMPTY);
+    for (const [key, tex] of antTex) {
+        const under = key.lastIndexOf('_');
+        const type = key.slice(0, under) as AntType;
+        const frame = +key.slice(under + 1);
+        _antTexFlat[_ANT_TYPE_IDX[type] * 3 + frame] = tex;
+    }
+    _wingTexFlat = wingTextures;
     _enmTex = enmTex;
     _eggTex = eggTex;
     _larvaTex = larvaTex;
@@ -82,23 +91,18 @@ export function updateEntities(): void {
 
     for (const ant of STATE.ants) {
         if (ant._carried) continue;
-        const col = Math.round(ant.col), row = Math.round(ant.row);
-        // Airborne princesses may be above the map — still render them
-        const isPrincessAirborne = ant.type === 'princess' && ant.state === 'fly';
-        if (!isPrincessAirborne && fog && STATE.inBounds(col, row) && fog[STATE.idx(col, row)] <= 0) continue;
-
         const isDev = ant.lifestage === 'egg' || ant.lifestage === 'larva' || ant.lifestage === 'pupa';
         if (isDev) {
             const s = stageSprite(si++);
             s.visible = true;
             s.position.set(ant.col * CELL, ant.row * CELL);
-            s.tint = 0xffffff;
             s.rotation = 0;
             if (ant.lifestage === 'egg') {
                 s.texture = _eggTex;
                 s.tint = ANT_HEX[ant.type as AntType] ?? 0xffffff;
             } else if (ant.lifestage === 'larva') {
                 s.texture = _larvaTex;
+                s.tint = 0xffffff;
             } else {
                 s.texture = _pupaTex;
                 s.tint = ANT_HEX[ant.type as AntType] ?? 0xffffff;
@@ -109,53 +113,41 @@ export function updateEntities(): void {
             s.position.set(ant.col * CELL, ant.row * CELL);
             s.tint = 0xffffff;
             const animFrame = Math.floor((_animTick / 5 + ai * 13) % 3);
-            s.texture = _antTex.get(`${ant.type}_${animFrame}`) ?? Texture.EMPTY;
-            s.anchor.set(0.5, ANT_AY);
+            s.texture = _antTexFlat[_ANT_TYPE_IDX[ant.type] * 3 + animFrame];
             s.rotation = (ant.angle ?? -Math.PI / 2) + Math.PI / 2;
         }
     }
     for (let i = si; i < _stagePool.length; i++) _stagePool[i].visible = false;
     for (let i = ai; i < _antPool.length; i++) _antPool[i].visible = false;
 
-    // Princess FLIGHT wings — only shown when not in 'wander' (ground) state.
-    // While walking the folded wings are baked into the sprite; this layer is reserved for flight.
+    // Princess FLIGHT wings — baked sprite frames replace dynamic Graphics.
+    // All visible princesses share the same animation frame (same _animTick).
+    const wf = 0.55 + 0.45 * Math.abs(Math.sin(_animTick * 1.31));
+    const wfi = Math.min(_wingTexFlat.length - 1,
+        Math.round((wf - 0.55) / 0.45 * (_wingTexFlat.length - 1)));
     let wi = 0;
     for (const ant of STATE.ants) {
-        if (ant.type !== 'princess' || ant.lifestage || ant.state !== 'fly') continue;
-        const col = Math.round(ant.col), row = Math.round(ant.row);
-        // Always render airborne princesses even if out of bounds; apply fog only when in bounds
-        const inBounds = STATE.inBounds(col, row);
-        if (inBounds && fog && fog[STATE.idx(col, row)] <= 0) continue;
-
+        if (ant.type !== 'princess' || ant.state !== 'fly') continue;
         if (wi >= _prWingPool.length) {
-            const container = new Container();
-            const g = new Graphics();
-            container.addChild(g);
-            _prWingLayer.addChild(container);
-            _prWingPool.push({ container, g });
+            const s = new Sprite(Texture.EMPTY);
+            s.anchor.set(WING_CX / WING_W, WING_CY / WING_H);
+            s.scale.set(DISP);
+            _prWingLayer.addChild(s);
+            _prWingPool.push(s);
         }
-        const { container, g } = _prWingPool[wi++];
-        container.visible = true;
-        container.position.set(ant.col * CELL, ant.row * CELL);
-        container.rotation = (ant.angle ?? -Math.PI / 2) + Math.PI / 2;
-
-        g.clear();
-        const r = CELL * 0.55 * 1.25;
-        const ty = -r * 0.43;
-        const f = 0.55 + 0.45 * Math.abs(Math.sin(_animTick * 1.31));
-
-        g.ellipse(-r * 1.3, ty - r * 0.1, r * 1.9 * f, r * 0.5 * f).fill({ color: 0xd0e8ff, alpha: 0.65 });
-        g.ellipse(r * 1.3, ty - r * 0.1, r * 1.9 * f, r * 0.5 * f).fill({ color: 0xd0e8ff, alpha: 0.65 });
-        g.ellipse(-r * 1.0, ty + r * 0.5, r * 1.4 * f, r * 0.38 * f).fill({ color: 0xb8d4ff, alpha: 0.55 });
-        g.ellipse(r * 1.0, ty + r * 0.5, r * 1.4 * f, r * 0.38 * f).fill({ color: 0xb8d4ff, alpha: 0.55 });
+        const s = _prWingPool[wi++];
+        s.visible = true;
+        s.texture = _wingTexFlat[wfi];
+        s.position.set(ant.col * CELL, ant.row * CELL);
+        s.rotation = (ant.angle ?? -Math.PI / 2) + Math.PI / 2;
     }
-    for (let i = wi; i < _prWingPool.length; i++) _prWingPool[i].container.visible = false;
+    for (let i = wi; i < _prWingPool.length; i++) _prWingPool[i].visible = false;
 
     // Enemies
     let ei = 0;
     for (const e of STATE.enemies) {
         const col = Math.floor(e.col), row = Math.floor(e.row);
-        if (fog && STATE.inBounds(col, row) && fog[STATE.idx(col, row)] <= 0) continue;
+        if (fog[STATE.idx(col, row)] <= 0) continue;
 
         const s = enmSprite(ei++);
         s.visible = true;

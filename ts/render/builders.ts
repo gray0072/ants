@@ -204,6 +204,19 @@ export function buildPupa(): Graphics {
     return g;
 }
 
+// Wing frame — drawn at DRAW_SCALE so it matches the ant sprite resolution.
+// f ∈ [0.55, 1.0] controls how fully the wings are spread.
+export function buildWingFrame(f: number): Graphics {
+    const g = new Graphics();
+    const r = CELL * 0.55 * 1.25 * DRAW_SCALE;
+    const ty = -r * 0.43;
+    g.ellipse(-r * 1.3, ty - r * 0.1, r * 1.9 * f, r * 0.5 * f).fill({ color: 0xd0e8ff, alpha: 0.65 });
+    g.ellipse( r * 1.3, ty - r * 0.1, r * 1.9 * f, r * 0.5 * f).fill({ color: 0xd0e8ff, alpha: 0.65 });
+    g.ellipse(-r * 1.0, ty + r * 0.5, r * 1.4 * f, r * 0.38 * f).fill({ color: 0xb8d4ff, alpha: 0.55 });
+    g.ellipse( r * 1.0, ty + r * 0.5, r * 1.4 * f, r * 0.38 * f).fill({ color: 0xb8d4ff, alpha: 0.55 });
+    return g;
+}
+
 export function bakeTexture(
     app: Application,
     g: Graphics,

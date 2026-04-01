@@ -1,3 +1,5 @@
+// NOTE: CONFIG is intentionally mutable — applyDifficulty() overrides
+// START_FOOD, PRINCESS_LIMIT, and ENEMY_WAVE_SCALE at runtime.
 export const CONFIG = {
     // Timing
     UPS: 60,

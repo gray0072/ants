@@ -1,12 +1,12 @@
 import { CONFIG } from './config';
 import { STATE, Mover } from './state';
 import { MapModule } from './map';
-import { PERF } from './perf';
 
 // Static BFS buffers — reused across all findPath calls to avoid per-call allocations
 const _bfsParent = new Int32Array(CONFIG.COLS * CONFIG.ROWS);
 const _bfsQueue = new Int32Array(CONFIG.COLS * CONFIG.ROWS);
-const _bfsDirs: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const _DC = [1, -1, 0, 0];
+const _DR = [0, 0, 1, -1];
 
 // ---------------------------------------------------------------------------
 // Path cache — only for MapModule.isPassable (symmetric, stable across digs)
@@ -14,6 +14,7 @@ const _bfsDirs: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 // ---------------------------------------------------------------------------
 
 const GRID_SIZE = CONFIG.COLS * CONFIG.ROWS;
+const PATH_CACHE_MAX = 2000;
 type PathResult = [number, number][] | null;
 const _pathCache = new Map<number, PathResult>();
 
@@ -29,24 +30,6 @@ function _reversePath(path: [number, number][], fc: number, fr: number): [number
 }
 
 export function invalidatePathCache(): void { _pathCache.clear(); }
-
-// Called by MapModule.expandSurface() — shifts all cached row indices down by delta.
-export function shiftPathCache(delta: number): void {
-    const { COLS, ROWS } = CONFIG;
-    const entries = Array.from(_pathCache.entries());
-    _pathCache.clear();
-    for (const [key, path] of entries) {
-        const si = (key / GRID_SIZE) | 0;
-        const ei = key % GRID_SIZE;
-        const newSr = (si / COLS | 0) + delta;
-        const newEr = (ei / COLS | 0) + delta;
-        if (newSr >= ROWS || newEr >= ROWS) continue;
-        const newSi = newSr * COLS + (si % COLS);
-        const newEi = newEr * COLS + (ei % COLS);
-        _pathCache.set(_packKey(newSi, newEi),
-            path === null ? null : path.map(([c, r]) => [c, r + delta]));
-    }
-}
 
 // BFS pathfinding with parent pointers — avoids O(path_length) allocations per node
 // Returns path with first step at the END (use path.pop() to consume steps)
@@ -80,12 +63,12 @@ function findPath(fc: number, fr: number, tc: number, tr: number, passableFn: (c
     _bfsQueue[tail++] = startIdx;
 
     let iter = 0;
-    while (head < tail && iter++ < 20000) {
+    while (head < tail && iter++ < CONFIG.COLS * CONFIG.ROWS) {
         const cur = _bfsQueue[head++];
         const c = cur % COLS;
         const r = (cur / COLS) | 0;
-        for (const [dc, dr] of _bfsDirs) {
-            const nc = c + dc, nr = r + dr;
+        for (let d = 0; d < 4; d++) {
+            const nc = c + _DC[d], nr = r + _DR[d];
             if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) continue;
             const ni = nr * COLS + nc;
             if (_bfsParent[ni] !== -1) continue;
@@ -99,20 +82,26 @@ function findPath(fc: number, fr: number, tc: number, tr: number, passableFn: (c
                     path.push([idx % COLS, (idx / COLS) | 0]);
                     idx = _bfsParent[idx];
                 }
-                if (cacheable) _pathCache.set(_packKey(startIdx, endIdx), path);
+                if (cacheable) {
+                    if (_pathCache.size >= PATH_CACHE_MAX) _pathCache.clear();
+                    _pathCache.set(_packKey(startIdx, endIdx), path);
+                }
                 return path.slice();
             }
             _bfsQueue[tail++] = ni;
         }
     }
-    if (cacheable) _pathCache.set(_packKey(startIdx, endIdx), null);
+    if (cacheable) {
+        if (_pathCache.size >= PATH_CACHE_MAX) _pathCache.clear();
+        _pathCache.set(_packKey(startIdx, endIdx), null);
+    }
     return null;
 }
 
 export function stepToward(mover: Mover, tc: number, tr: number): boolean {
     const dx = (tc + 0.5) - mover.col;
     const dy = (tr + 0.5) - mover.row;
-    const d = Math.hypot(dx, dy);
+    const d = Math.sqrt(dx * dx + dy * dy); // Math.sqrt is faster than Math.hypot (no NaN/Inf handling)
     if (d < 0.1) return true; // arrived
     mover.angle = Math.atan2(dy, dx);
     mover.col += (dx / d) * mover.speed;
@@ -122,8 +111,8 @@ export function stepToward(mover: Mover, tc: number, tr: number): boolean {
 
 export function followPath(mover: Mover): boolean {
     if (!mover.path || mover.path.length === 0) return true;
-    const [tc, tr] = mover.path[mover.path.length - 1];
-    if (stepToward(mover, tc, tr)) {
+    const step = mover.path[mover.path.length - 1]; // index access avoids tuple destructuring
+    if (stepToward(mover, step[0], step[1])) {
         mover.path.pop();
     }
     return mover.path.length === 0;
@@ -131,6 +120,13 @@ export function followPath(mover: Mover): boolean {
 
 // On surface both ends are open — skip BFS and go straight.
 // Underground → surface: BFS to tunnel exit, then straight to target.
+// Module-level state for the underground passability check avoids allocating a new
+// closure on every requestPath call (closures are expensive in hot code).
+let _rpEntryR = 0;
+function _isPassableUnderground(c: number, r: number): boolean {
+    return r >= _rpEntryR && MapModule.isPassable(c, r);
+}
+
 export function requestPath(mover: Mover, tc: number, tr: number): void {
     mover.targetCol = tc;
     mover.targetRow = tr;
@@ -145,7 +141,8 @@ export function requestPath(mover: Mover, tc: number, tr: number): void {
     }
     const entryC = STATE.nestCol;
     const entryR = STATE.surfaceRows - 1;
-    const isPassableFn = (c, r) => r >= entryR && MapModule.isPassable(c, r);
+    _rpEntryR = entryR;
+    const isPassableFn = _isPassableUnderground;
     if (!moverOnSurface && tgtOnSurface) {
         // BFS underground to tunnel exit, then straight on surface to target
         const bfsPath = findPath(moverCol, moverRow, entryC, entryR, isPassableFn);
@@ -160,7 +157,6 @@ export function requestPath(mover: Mover, tc: number, tr: number): void {
         // Straight on surface to tunnel entrance, then BFS underground to target.
         // Restrict BFS to underground cells only (r >= surfaceRows) so it never
         // routes through surface cells and creates a zigzag.
-        const surf = STATE.surfaceRows;
         const bfsPath = findPath(entryC, entryR, tc, tr, isPassableFn);
         if (bfsPath) {
             // [entryC, entryR] at the end is consumed first — straight line from ant to entrance

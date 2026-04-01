@@ -10,6 +10,7 @@ import { updateScout } from './ants/scout';
 import { updateQueen } from './ants/queen';
 import { updateNurse } from './ants/nurse';
 import { updatePrincess } from './ants/princess';
+import { PERF } from './perf';
 
 type AntTypeMap = {
     worker: WorkerAnt;
@@ -54,7 +55,7 @@ export function createAnt<T extends AntType>(type: T, col: number, row: number):
         hp: c.hp,
         maxHp: c.hp,
         speed: c.speed,
-        attackRange: CONFIG.QUEEN_ATTACK_RANGE,
+        attackRange: c.attackRange,
         damage: c.damage,
         revealRadius: c.reveal,
         lifestage: null,
@@ -83,23 +84,11 @@ export function createAnt<T extends AntType>(type: T, col: number, row: number):
 // ---------------------------------------------------------------------------
 
 export function nearestFood(ant: Ant): [number, number] | null {
-    let best: [number, number] | null = null;
-    let bestDist = Infinity;
-    const underground = Math.floor(ant.row) >= STATE.surfaceRows;
+    const underground = ant.row >= STATE.surfaceRows;
     const refCol = underground ? STATE.nestCol + 0.5 : ant.col;
     const refRow = underground ? STATE.surfaceRows - 0.5 : ant.row;
-    for (const i of STATE.foodCells) {
-        if (!STATE.fog || STATE.fog[i] <= 0) continue;
-        const c = i % CONFIG.COLS;
-        const r = (i / CONFIG.COLS) | 0;
-        if (!MapModule.isPassable(c, r)) continue;
-        const d = dist(refCol, refRow, c + 0.5, r + 0.5);
-        if (d < bestDist) {
-            bestDist = d;
-            best = [c, r];
-        }
-    }
-    return best;
+    const fog = STATE.fog;
+    return STATE.foodCells.findNearest(refCol, refRow, (i, _c, _r) => fog[i] > 0);
 }
 
 export function nearestVisibleEnemy(ant: Ant): Enemy | null {
@@ -111,13 +100,12 @@ export function nearestVisibleEnemy(ant: Ant): Enemy | null {
         if (e.hp <= 0) continue;
         const ec = Math.floor(e.col);
         const er = Math.floor(e.row);
-        if (!STATE.inBounds(ec, er)) continue;
-        if (!STATE.fog || STATE.fog[STATE.idx(ec, er)] <= 0) continue;
+        if (STATE.fog[STATE.idx(ec, er)] <= 0) continue;
         const d2 = dist2(ant.col, ant.row, e.col, e.row);
         if (d2 < bestD2) { bestD2 = d2; best = e; }
-        ant.cachedTarget = best;
-        ant.cachedTargetTTL = best ? Math.max(5, (Math.sqrt(bestD2) - e.attackRange) / (ant.speed + best.speed)) : 5;
     }
+    ant.cachedTarget = best;
+    ant.cachedTargetTTL = best ? Math.max(5, (Math.sqrt(bestD2) - best.attackRange) / (ant.speed + best.speed)) : 5;
     return best;
 }
 
@@ -135,8 +123,7 @@ export function tryAttack(
     attacker: { col: number; row: number; attackRange: number; damage: number; attackCooldown: number; baseCooldown: number },
     target: { col: number; row: number; hp: number }
 ): AttackResult {
-    const d = dist(attacker.col, attacker.row, target.col, target.row);
-    if (d > attacker.attackRange) return 'outOfRange';
+    if (dist2(attacker.col, attacker.row, target.col, target.row) > attacker.attackRange * attacker.attackRange) return 'outOfRange';
     if (attacker.attackCooldown > 0) return 'cooldown';
     target.hp -= attacker.damage;
     attacker.attackCooldown = attacker.baseCooldown;
@@ -209,7 +196,7 @@ export function updateFlightGuardStates(ant: WorkerAnt | SoldierAnt): boolean {
     }
     if (ant.state === 'surface') {
         const enemy = nearestVisibleEnemy(ant);
-        if (enemy && dist(ant.col, ant.row, enemy.col, enemy.row) <= CONFIG.FLIGHT_GUARD_CHASE_RADIUS) {
+        if (enemy && dist2(ant.col, ant.row, enemy.col, enemy.row) <= CONFIG.FLIGHT_GUARD_CHASE_RADIUS * CONFIG.FLIGHT_GUARD_CHASE_RADIUS) {
             if (tryAttack(ant, enemy) === 'outOfRange') {
                 chaseTarget(ant, enemy);
             }
@@ -229,7 +216,7 @@ export function updateFlightGuardStates(ant: WorkerAnt | SoldierAnt): boolean {
     if (ant.state === 'fly') {
         const enemy = nearestVisibleEnemy(ant);
         if (enemy && ant.targetCol !== null && ant.targetRow !== null
-            && dist(ant.targetCol, ant.targetRow, enemy.col, enemy.row) <= CONFIG.FLIGHT_GUARD_CHASE_RADIUS) {
+            && dist2(ant.targetCol, ant.targetRow, enemy.col, enemy.row) <= CONFIG.FLIGHT_GUARD_CHASE_RADIUS * CONFIG.FLIGHT_GUARD_CHASE_RADIUS) {
             if (tryAttack(ant, enemy) === 'outOfRange') {
                 ant.state = 'chase';
                 chaseTarget(ant, enemy);
@@ -247,13 +234,13 @@ export function updateFlightGuardStates(ant: WorkerAnt | SoldierAnt): boolean {
     if (ant.state === 'chase' && STATE.flightStarted) {
         // Give up chase if too far from ring position
         if (ant.targetCol !== null && ant.targetRow !== null
-            && dist(ant.col, ant.row, ant.targetCol + 0.5, ant.targetRow + 0.5) > CONFIG.FLIGHT_GUARD_CHASE_RADIUS) {
+            && dist2(ant.col, ant.row, ant.targetCol + 0.5, ant.targetRow + 0.5) > CONFIG.FLIGHT_GUARD_CHASE_RADIUS * CONFIG.FLIGHT_GUARD_CHASE_RADIUS) {
             ant.state = 'surface';
             ant.path = [];
             return true;
         }
         const enemy = nearestVisibleEnemy(ant);
-        if (enemy && dist(ant.col, ant.row, enemy.col, enemy.row) <= CONFIG.FLIGHT_GUARD_CHASE_RADIUS) {
+        if (enemy && dist2(ant.col, ant.row, enemy.col, enemy.row) <= CONFIG.FLIGHT_GUARD_CHASE_RADIUS * CONFIG.FLIGHT_GUARD_CHASE_RADIUS) {
             if (tryAttack(ant, enemy) === 'outOfRange') {
                 chaseTarget(ant, enemy);
             }
@@ -302,7 +289,6 @@ function endGame(won: boolean): void {
 export const AntModule = {
     update(): void {
         for (const ant of STATE.ants) {
-            //if (ant.hp <= 0) continue;
             if (ant.lifestage) { updateLifestage(ant); continue; }
             switch (ant.type) {
                 case 'worker': updateWorker(ant); break;
@@ -314,21 +300,22 @@ export const AntModule = {
             }
         }
 
-        // Remove dead ants and locate queen in a single pass
+        // Remove dead ants and locate queen in a single pass (swap-compact, O(n))
         let queen: QueenAnt | null = null;
-        let i = STATE.ants.length;
-        while (i--) {
+        let alive = 0;
+        for (let i = 0; i < STATE.ants.length; i++) {
             const a = STATE.ants[i];
             if (a.hp <= 0) {
                 if (STATE.flightStarted && a.type === 'princess' && a.lifestage === null
                     && (a.state === 'fly' || a.state === 'surface' || a.state === 'prepare')) {
                     STATE.flightEscaped++;
                 }
-                STATE.ants.splice(i, 1);
                 continue;
             }
             if (a.type === 'queen') queen = a as QueenAnt;
+            STATE.ants[alive++] = a;
         }
+        STATE.ants.length = alive;
         STATE.queen = queen;
         if (STATE.ants.length > STATS.maxAnts) STATS.maxAnts = STATE.ants.length;
         if (!STATE.queen) { endGame(false); return; }

@@ -80,6 +80,12 @@ export const UIModule = {
                     case 'Digit2': setSpeed(2); return;
                     case 'Digit3': setSpeed(4); return;
                     case 'Digit4': setSpeed(8); return;
+                    case 'Digit5': setSpeed(16); return;
+                    case 'Digit6': setSpeed(32); return;
+                    case 'Digit7': setSpeed(64); return;
+                    case 'Digit8': setSpeed(128); return;
+                    case 'Digit9': setSpeed(256); return;
+                    case 'Digit0': setSpeed(512); return;
                 }
                 if (ev.shiftKey) {
                     switch (ev.code) {

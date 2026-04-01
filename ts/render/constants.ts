@@ -45,6 +45,14 @@ export const EGG_W = 24, EGG_H = 28;
 export const LAR_W = 36, LAR_H = 30;
 export const PUP_W = 30, PUP_H = 40;
 
+// Princess flight wings — baked at DRAW_SCALE, origin = ant body centre.
+// r = CELL * 0.55 * 1.25 * DRAW_SCALE = 16.5; x extents ±r*3.2 = ±52.8; y: -17 to +7.4
+export const WING_FRAMES = 8;
+export const WING_W = 114;
+export const WING_H = 34;
+export const WING_CX = 57;   // x=0 in wing-space (ant body, horizontal centre)
+export const WING_CY = 21;   // y=0 in wing-space (ant body, ~62% down from top)
+
 // ─── Color palette ────────────────────────────────────────────────────────────
 
 export const ANT_HEX: Record<AntType, number> = {

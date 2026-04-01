@@ -165,6 +165,7 @@ export function closeBench(): void {
 
 let _emaUpdate = 0;
 let _emaRender = 0;
+let _prevEggQueueLen = -1;
 
 export function setPerfMetrics(updateMs: number, renderMs: number): void {
     if (updateMs > 0) _emaUpdate = _emaUpdate * 0.9 + updateMs * 0.1;
@@ -201,28 +202,50 @@ export function update(): void {
     const chamberCost = STATE.chamberCost();
     const expandCost = STATE.expandCost();
 
-    const princessCount = STATE.ants.filter(a => a.type === 'princess' && a.lifestage === null).length;
+    // Single-pass ant counting (avoids 6+ filter() calls per frame)
+    let cntWorker = 0, cntSoldier = 0, cntScout = 0, cntNurse = 0, cntPrincess = 0;
+    let princessCount = 0;
+    for (const a of STATE.ants) {
+        switch (a.type) {
+            case 'worker': cntWorker++; break;
+            case 'soldier': cntSoldier++; break;
+            case 'scout': cntScout++; break;
+            case 'nurse': cntNurse++; break;
+            case 'princess': cntPrincess++; if (!a.lifestage) princessCount++; break;
+        }
+    }
+    // Count pending eggs
+    for (const o of pending) {
+        switch (o) {
+            case 'worker': cntWorker++; break;
+            case 'soldier': cntSoldier++; break;
+            case 'scout': cntScout++; break;
+            case 'nurse': cntNurse++; break;
+            case 'princess': cntPrincess++; break;
+        }
+    }
+
     const queenAlive = STATE.queen !== null && STATE.queen.hp > 0;
     const chambersGoal = CONFIG.GOAL_CHAMBERS;
     const surfaceGoal = CONFIG.SURFACE_ROWS_MAX;
     const princessesGoal = CONFIG.PRINCESS_LIMIT;
 
-    const cnt = (type: AntType): number =>
-        STATE.ants.filter(a => a.type === type).length + pending.filter(o => o === type).length;
+    // Only copy eggQueue when its length changes
+    const eggQueueChanged = pending.length !== _prevEggQueueLen;
+    _prevEggQueueLen = pending.length;
 
     batch(() => {
-        setStore({
+        const updates: Partial<UIStore> = {
             food: Math.floor(STATE.food),
             pop, cap,
             wave: STATE.wave,
             waveEnemies: STATE.waveEnemyCount,
             queenHpPct: Math.max(0, ((STATE.queen?.hp || 0) / CONFIG.QUEEN_HP) * 100),
-            eggQueue: [...pending],
-            cntWorker: cnt('worker'),
-            cntSoldier: cnt('soldier'),
-            cntScout: cnt('scout'),
-            cntNurse: cnt('nurse'),
-            cntPrincess: cnt('princess'),
+            cntWorker,
+            cntSoldier,
+            cntScout,
+            cntNurse,
+            cntPrincess,
             btnDisabled: {
                 worker: STATE.food < CONFIG.COST_WORKER || pop >= cap,
                 soldier: STATE.food < CONFIG.COST_SOLDIER || pop >= cap,
@@ -249,7 +272,9 @@ export function update(): void {
             flightTotal: STATE.flightTotal,
             flightProg: `${STATE.flightEscaped}/${STATE.flightTotal}`,
             completedFlights: STATE.completedFlights,
-        });
+        };
+        if (eggQueueChanged) updates.eggQueue = [...pending];
+        setStore(updates);
     });
 
     if (STATE.over && !store.showGameOver) showGameOverModal(STATE.won);

@@ -3,6 +3,11 @@ import { STATE, Ant, QueenAnt } from '../state';
 import { createAnt, reveal, nearestVisibleEnemy, tryAttack } from '../ant';
 import { requestPath, followPath } from '../path';
 
+let _freeEggsCache: Ant[] | null = null;
+let _freeEggsCacheTick = -1;
+
+export function invalidateFreeEggsCache(): void { _freeEggsCache = null; }
+
 /** Returns the nearest free cell in the queen's chamber to her current position, 
  * or null if the chamber is full. */
 export function findFreeQueenChamberSpot(): { c: number; r: number } | null {
@@ -13,9 +18,9 @@ export function findFreeQueenChamberSpot(): { c: number; r: number } | null {
     const qr = STATE.queen ? Math.floor(STATE.queen.row) : nr;
 
     const takenKeys = new Set<number>();
-    takenKeys.add(nr * 100000 + nc);
+    takenKeys.add(STATE.idx(nc, nr));
     for (const a of STATE.ants) {
-        if (a.lifestage) takenKeys.add(Math.floor(a.row) * 100000 + Math.floor(a.col));
+        if (a.lifestage) takenKeys.add(STATE.idx(Math.floor(a.col), Math.floor(a.row)));
     }
 
     const candidates: { c: number; r: number; d: number }[] = [];
@@ -28,16 +33,18 @@ export function findFreeQueenChamberSpot(): { c: number; r: number } | null {
     }
     candidates.sort((a, b) => a.d - b.d);
     for (const { c, r } of candidates) {
-        if (!takenKeys.has(r * 100000 + c)) return { c, r };
+        if (!takenKeys.has(STATE.idx(c, r))) return { c, r };
     }
     return null;
 }
 
 export function freeEggsInQueenChamber(): Ant[] {
+    if (_freeEggsCache !== null && _freeEggsCacheTick === STATE.tick) return _freeEggsCache;
+
     const { nestCol, nestRow } = STATE;
     const hw = STATE.queenChamberHalfW;
     const hh = CONFIG.QUEEN_CHAMBER_HALF_H;
-    const reserved = new Set();
+    const reserved = new Set<Ant>();
     for (const a of STATE.ants) {
         if (a.type === 'nurse') {
             if (a.carriedEgg) reserved.add(a.carriedEgg);
@@ -45,12 +52,16 @@ export function freeEggsInQueenChamber(): Ant[] {
         }
     }
     const STAGE_ORDER: Record<string, number> = { egg: 0, larva: 1, pupa: 2 };
-    return STATE.ants.filter(a =>
+    const result = STATE.ants.filter(a =>
         a.lifestage &&
         !reserved.has(a) &&
         Math.abs(Math.floor(a.col) - nestCol) <= hw &&
         Math.abs(Math.floor(a.row) - nestRow) <= hh
     ).sort((a, b) => (STAGE_ORDER[a.lifestage!] ?? 99) - (STAGE_ORDER[b.lifestage!] ?? 99));
+
+    _freeEggsCache = result;
+    _freeEggsCacheTick = STATE.tick;
+    return result;
 }
 
 export function updateQueen(ant: QueenAnt): void {

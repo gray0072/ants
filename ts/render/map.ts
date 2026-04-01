@@ -14,7 +14,12 @@ let _cellNoise: Float32Array; // per-cell brightness variation [0.90..1.10]
 let _litBuf32: Uint32Array;
 let _prevFog: Float32Array;       // fog per cell from last frame (−1 = not yet rendered)
 let _prevCellType: Uint8Array;    // encoded cell type from last frame (0 = unset)
-const _CELL_ID: Record<string, number> = { soil: 1, surface: 2, tunnel: 3, chamber: 4 };
+const _CELL_ID: Record<CellType, number> = { soil: 1, surface: 2, tunnel: 3, chamber: 4 };
+
+// Texture upload throttle: cell-type changes (tunnel digs) upload immediately;
+// fog-only changes upload every 2 frames to halve texSubImage2D cost.
+let _mapUploadFrame = 0;
+let _cellTypeDirty = false;
 
 let _mapBuf32: Uint32Array;
 let _mapSrc: BufferImageSource;
@@ -62,6 +67,7 @@ function initNoise(): void {
 // Bake fully-lit (fog-free) pixel colors for one cell into _litBuf32.
 // Called once per cell at first render, then only when the cell type changes.
 function buildLitCell(col: number, row: number): void {
+    _cellTypeDirty = true;
     const { COLS } = CONFIG;
     const ci = row * COLS + col;
     const ct = STATE.map[ci] as CellType;
@@ -130,16 +136,16 @@ export function initMap(mapBuf32: Uint32Array, mapSrc: BufferImageSource): void 
 
 export function updateMap(): void {
     const { COLS, ROWS } = CONFIG;
-    const fog = STATE.fog!;
-    if (!fog) return;
-
+    const fog = STATE.fog;
     let dirty = false;
+    _cellTypeDirty = false;
+    const introActive = hasIntroData();
 
     for (let row = 0; row < ROWS; row++) {
         for (let col = 0; col < COLS; col++) {
             const ci = row * COLS + col;
             const ctId = _CELL_ID[STATE.map[ci]] ?? 0;
-            const fogV = hasIntroData() ? 1 : fog[ci];
+            const fogV = introActive ? 1 : fog[ci];
 
             // Rebuild lit pixels only when cell type changes (e.g. tunnel dug).
             if (_prevCellType[ci] !== ctId) {
@@ -177,5 +183,11 @@ export function updateMap(): void {
             }
         }
     }
-    if (dirty) _mapSrc.update();
+    if (dirty) {
+        // Cell-type changes (tunnel digs) need an immediate upload.
+        // Fog-only changes are throttled to every 2 frames — imperceptible but halves GPU upload cost.
+        if (_cellTypeDirty || _mapUploadFrame++ % 3 === 0) {
+            _mapSrc.update();
+        }
+    }
 }

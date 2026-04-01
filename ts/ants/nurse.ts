@@ -3,7 +3,7 @@ import { STATE, Ant, NurseAnt } from '../state';
 import { MapModule } from '../map';
 import { reveal } from '../ant';
 import { requestPath, followPath } from '../path';
-import { freeEggsInQueenChamber } from './queen';
+import { freeEggsInQueenChamber, invalidateFreeEggsCache } from './queen';
 
 export function updateNurse(ant: NurseAnt): void {
     reveal(ant);
@@ -49,6 +49,7 @@ export function updateNurse(ant: NurseAnt): void {
         if (!ant.targetedEgg) {
             if (eggs.length > 0) {
                 ant.targetedEgg = eggs[0];
+                invalidateFreeEggsCache();
                 requestPath(ant, Math.floor(eggs[0].col), Math.floor(eggs[0].row));
             } else {
                 ant.state = 'waitInChamber';

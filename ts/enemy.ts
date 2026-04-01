@@ -5,7 +5,7 @@ import { dist2, tryAttack, chaseTarget } from './ant';
 
 export type EnemyType = 'beetle' | 'spider';
 
-function createEnemy(type: EnemyType, col: number, row: number): Enemy {
+export function createEnemy(type: EnemyType, col: number, row: number): Enemy {
     const cfg = {
         beetle: { hp: CONFIG.BEETLE_HP, speed: CONFIG.BEETLE_SPEED, damage: CONFIG.BEETLE_DAMAGE, cooldown: CONFIG.BEETLE_ATTACK_COOLDOWN },
         spider: { hp: CONFIG.SPIDER_HP, speed: CONFIG.SPIDER_SPEED, damage: CONFIG.SPIDER_DAMAGE, cooldown: CONFIG.SPIDER_ATTACK_COOLDOWN },
@@ -73,7 +73,6 @@ export const EnemyModule = {
         }
 
         for (const e of STATE.enemies) {
-            //if (e.hp <= 0) continue;
             if (e.attackCooldown > 0) e.attackCooldown--;
 
             const target = getNearestTarget(e);

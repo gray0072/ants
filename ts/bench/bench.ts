@@ -1,8 +1,8 @@
 import { CONFIG } from '../config';
-import { STATE, Enemy } from '../state';
+import { STATE } from '../state';
 import { STATS } from '../stats';
 import { AntModule } from '../ant';
-import { EnemyModule } from '../enemy';
+import { EnemyModule, createEnemy } from '../enemy';
 import { ColonyModule } from '../colony';
 import { MapModule } from '../map';
 
@@ -18,21 +18,6 @@ export interface BenchOptions {
     revealFog: boolean;
 }
 
-function makeEnemy(type: 'beetle' | 'spider', col: number, row: number): Enemy {
-    const cfg = type === 'beetle'
-        ? { hp: CONFIG.BEETLE_HP, speed: CONFIG.BEETLE_SPEED, damage: CONFIG.BEETLE_DAMAGE, cooldown: CONFIG.BEETLE_ATTACK_COOLDOWN }
-        : { hp: CONFIG.SPIDER_HP, speed: CONFIG.SPIDER_SPEED, damage: CONFIG.SPIDER_DAMAGE, cooldown: CONFIG.SPIDER_ATTACK_COOLDOWN };
-    return {
-        type, col: col + 0.5, row: row + 0.5,
-        hp: cfg.hp, maxHp: cfg.hp, speed: cfg.speed,
-        attackRange: CONFIG.ENEMY_ATTACK_RANGE, damage: cfg.damage,
-        attackCooldown: 0, baseCooldown: cfg.cooldown,
-        path: [], targetCol: null, targetRow: null,
-        wanderTimer: 0, angle: Math.PI / 2,
-        cachedTarget: null, cachedTargetTTL: 0,
-    };
-}
-
 export function setup(opts: BenchOptions): void {
     STATE.reset();
     STATS.reset();
@@ -43,7 +28,7 @@ export function setup(opts: BenchOptions): void {
     if (opts.expandSurface) MapModule.expandSurfaceFull();
     if (opts.allChambers) ColonyModule.digAllChambers();
 
-    if (opts.revealFog) STATE.fog?.fill(1);
+    if (opts.revealFog) STATE.fog.fill(1);
     STATE.survival = true;
 
     ColonyModule.setAntsCount('worker', opts.workers);
@@ -62,7 +47,7 @@ export function setup(opts: BenchOptions): void {
     for (let i = 0; i < opts.enemies; i++) {
         const c = Math.floor(Math.random() * cols);
         const r = Math.floor(Math.random() * surfRows);
-        STATE.enemies.push(makeEnemy(i % 2 === 0 ? 'beetle' : 'spider', c, r));
+        STATE.enemies.push(createEnemy(i % 2 === 0 ? 'beetle' : 'spider', c, r));
     }
 
     STATE.nextEnemySpawn = Number.MAX_SAFE_INTEGER;

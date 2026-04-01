@@ -1,5 +1,5 @@
 import { CONFIG } from '../config';
-import { STATE, Ant } from '../state';
+import { STATE, Ant, PrincessAnt } from '../state';
 import { STATS } from '../stats';
 import { reveal } from '../ant';
 import { requestPath, followPath } from '../path';
@@ -27,7 +27,7 @@ export function startFlight(): boolean {
     return true;
 }
 
-export function updatePrincess(ant: Ant): void {
+export function updatePrincess(ant: PrincessAnt): void {
     reveal(ant);
 
     // ── WANDER: underground roaming ───────────────────────────────────────────
@@ -108,8 +108,8 @@ export function updatePrincess(ant: Ant): void {
         ant.path = [];
         ant.state = 'fly';
         ant.wanderTimer = 0;
-        ant.targetCol = ant.col
-        ant.targetRow = ant.row
+        ant.targetCol = ant.col;
+        ant.targetRow = ant.row;
         return;
     }
 
@@ -143,10 +143,7 @@ export function updatePrincess(ant: Ant): void {
         ant.row = pos.y;
         ant.angle = rot;
 
-        if (ant.row < -3 || ant.row > CONFIG.ROWS + 3
-            || ant.col < -3 || ant.col > CONFIG.COLS + 3) {
-            // Will be counted with died
-            //STATE.flightEscaped++;
+        if (ant.row < -3 || ant.row > CONFIG.ROWS + 3 || ant.col < -3 || ant.col > CONFIG.COLS + 3) {
             STATS.totalPrincessesFled++;
             ant.hp = 0;
         }

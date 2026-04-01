@@ -29,34 +29,31 @@ function foodSprite(idx: number): Sprite {
 }
 
 export function updateFood(): void {
-    const { COLS, ROWS, FOOD_MAX } = CONFIG;
+    const { COLS, FOOD_MAX } = CONFIG;
     const food = STATE.foodGrid;
     const fog = STATE.fog;
     let si = 0;
 
-    if (food) {
-        for (let row = 0; row < ROWS; row++) {
-            for (let col = 0; col < COLS; col++) {
-                const i = row * COLS + col;
-                const fv = food[i];
-                if (fv <= 0) continue;
-                const fogV = fog ? fog[i] : 1;
-                if (fogV <= 0) continue;
+    for (const i of STATE.foodCells) {
+        const fv = food[i];
+        if (fv <= 0) continue;
+        const fogV = fog ? fog[i] : 1;
+        if (fogV <= 0) continue;
 
-                const t = Math.sqrt(Math.min(1, fv / FOOD_MAX));
-                const fa = Math.min(1, fogV * 2);
-                const h = (col * 1234 ^ row * 5678) & 0xff;
-                const ox = ((h & 0x0f) - 7.5) / 7.5 * CELL * 0.14;
-                const oy = ((h >> 4) - 7.5) / 7.5 * CELL * 0.14;
+        const col = i % COLS;
+        const row = (i / COLS) | 0;
+        const t = Math.sqrt(Math.min(1, fv / FOOD_MAX));
+        const fa = Math.min(1, fogV * 2);
+        const h = (col * 1234 ^ row * 5678) & 0xff;
+        const ox = ((h & 0x0f) - 7.5) / 7.5 * CELL * 0.14;
+        const oy = ((h >> 4) - 7.5) / 7.5 * CELL * 0.14;
 
-                const s = foodSprite(si++);
-                s.x = col * CELL + CELL * 0.5 + ox;
-                s.y = row * CELL + CELL * 0.5 + oy;
-                s.scale.set(DISP * (0.14 + t * 0.30) / FOOD_BASE_R);
-                s.alpha = fa;
-                s.visible = true;
-            }
-        }
+        const s = foodSprite(si++);
+        s.x = col * CELL + CELL * 0.5 + ox;
+        s.y = row * CELL + CELL * 0.5 + oy;
+        s.scale.set(DISP * (0.14 + t * 0.30) / FOOD_BASE_R);
+        s.alpha = fa;
+        s.visible = true;
     }
 
     for (let i = si; i < _foodPool.length; i++) _foodPool[i].visible = false;
@@ -140,8 +137,6 @@ export function updateOverlay(): void {
     for (const ant of STATE.ants) {
         if (ant._carried || ant.lifestage) continue;
         if (!(ant.type === 'worker' && ant.carriedFood) && !(ant.type === 'nurse' && ant.carriedEgg)) continue;
-        const col = Math.round(ant.col), row = Math.round(ant.row);
-        if (fog && STATE.inBounds(col, row) && fog[STATE.idx(col, row)] <= 0) continue;
 
         const r = CELL * 0.38;
         const θ = (ant.angle ?? -Math.PI / 2) + Math.PI / 2;
@@ -167,8 +162,6 @@ export function updateOverlay(): void {
     // HP bars — ants
     for (const ant of STATE.ants) {
         if (ant._carried || ant.hp >= ant.maxHp) continue;
-        const col = Math.round(ant.col), row = Math.round(ant.row);
-        if (fog && STATE.inBounds(col, row) && fog[STATE.idx(col, row)] <= 0) continue;
         const r = (ant.type === 'queen' || ant.type === 'princess') ? CELL * 0.55 : CELL * 0.38;
         const bw = CELL * 1.2, bh = 2;
         const bx = ant.col * CELL - bw / 2, by = ant.row * CELL - r - 6;
@@ -181,7 +174,7 @@ export function updateOverlay(): void {
     for (const e of STATE.enemies) {
         if (e.hp >= e.maxHp) continue;
         const col = Math.floor(e.col), row = Math.floor(e.row);
-        if (fog && STATE.inBounds(col, row) && fog[STATE.idx(col, row)] <= 0) continue;
+        if (STATE.inBounds(col, row) && fog[STATE.idx(col, row)] <= 0) continue;
         const r = CELL * 0.45;
         const bw = CELL * 1.2, bh = 2;
         const bx = e.col * CELL - bw / 2, by = e.row * CELL - r - 5;

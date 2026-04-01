@@ -1,7 +1,7 @@
 import { CONFIG } from './config';
 import { STATE, CellType } from './state';
 import { FogModule } from './fog';
-import { shiftPathCache, invalidatePathCache } from './path';
+import { invalidatePathCache } from './path';
 
 export const MapModule = {
     carve(col: number, row: number, type: CellType): void {
@@ -78,12 +78,12 @@ export const MapModule = {
         const surf = STATE.surfaceRows;
         const count = this.foodSourceCount();
         let placed = 0, attempts = 0;
-        while (placed < count && attempts < 10) {
+        while (placed < count && attempts < count * 10) {
             attempts++;
             const c = Math.floor(Math.random() * COLS);
             const r = Math.floor(Math.random() * surf);
             const i = STATE.idx(c, r);
-            if (STATE.foodGrid && STATE.foodGrid[i] === 0 && this.isPassable(c, r)) {
+            if (STATE.foodGrid[i] === 0) {
                 STATE.foodGrid[i] = FOOD_AMOUNT + Math.floor(Math.random() * FOOD_AMOUNT);
                 STATE.foodCells.add(i);
                 placed++;
@@ -97,12 +97,6 @@ export const MapModule = {
         return t !== 'soil';
     },
 
-    isPassableForEnemy(col: number, row: number): boolean {
-        if (!STATE.inBounds(col, row)) return false;
-        const t = STATE.map[STATE.idx(col, row)];
-        return t === 'surface' || t === 'tunnel' || t === 'chamber';
-    },
-
     regenerateFood(): void {
         const { COLS, FOOD_REGEN_AMOUNT, FOOD_MAX } = CONFIG;
         const surf = STATE.surfaceRows;
@@ -111,7 +105,7 @@ export const MapModule = {
             const c = Math.floor(Math.random() * COLS);
             const r = Math.floor(Math.random() * surf);
             const i = STATE.idx(c, r);
-            if (this.isPassable(c, r) && STATE.foodGrid && STATE.foodGrid[i] < FOOD_MAX) {
+            if (STATE.foodGrid[i] < FOOD_MAX) {
                 STATE.foodGrid[i] = Math.min(FOOD_MAX, STATE.foodGrid[i] + FOOD_REGEN_AMOUNT);
                 STATE.foodCells.add(i);
             }
@@ -130,15 +124,15 @@ export const MapModule = {
         // Shift all grids down by 1 row
         for (let i = size - 1; i >= COLS; i--) {
             STATE.map[i] = STATE.map[i - COLS];
-            if (STATE.foodGrid) STATE.foodGrid[i] = STATE.foodGrid[i - COLS];
-            if (STATE.fog) STATE.fog[i] = STATE.fog[i - COLS];
+            STATE.foodGrid[i] = STATE.foodGrid[i - COLS];
+            STATE.fog[i] = STATE.fog[i - COLS];
         }
 
         // Fill new top row as revealed surface
         for (let c = 0; c < COLS; c++) {
             STATE.map[c] = 'surface';
-            if (STATE.foodGrid) STATE.foodGrid[c] = 0;
-            if (STATE.fog) STATE.fog[c] = 0;
+            STATE.foodGrid[c] = 0;
+            STATE.fog[c] = 0;
         }
 
         // Shift all ants positions
@@ -158,20 +152,20 @@ export const MapModule = {
         // Shift nest anchor and chamber positions
         STATE.nestRow += 1;
         STATE.surfaceRows += 1;
-        shiftPathCache(1);
+        invalidatePathCache();
         for (const ch of STATE.chamberPositions) ch.row += 1;
 
         // Rebuild foodCells index
         STATE.foodCells.clear();
         for (let i = 0; i < size; i++) {
-            if (STATE.foodGrid && STATE.foodGrid[i] > 0) STATE.foodCells.add(i);
+            if (STATE.foodGrid[i] > 0) STATE.foodCells.add(i);
         }
 
         // Place food on the new top row and index it
         for (let n = 0; n < FOOD_PER_SURFACE_ROW * 3; n++) {
             const c = Math.floor(Math.random() * COLS);
             const i = c; // row 0
-            if (STATE.foodGrid && STATE.foodGrid[i] === 0) {
+            if (STATE.foodGrid[i] === 0) {
                 STATE.foodGrid[i] = FOOD_AMOUNT + Math.floor(Math.random() * FOOD_AMOUNT);
                 STATE.foodCells.add(i);
             }

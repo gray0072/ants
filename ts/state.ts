@@ -1,4 +1,5 @@
 import { CONFIG } from './config';
+import { FoodSpatialIndex } from './food-index';
 
 // Type definitions
 export type CellType = 'soil' | 'tunnel' | 'chamber' | 'surface';
@@ -106,7 +107,7 @@ export interface GameState {
 
     // Colony
     food: number;
-    foodGrid: Float32Array | null;
+    foodGrid: Float32Array;
     chambers: number;
     chamberPositions: ChamberPosition[];
     queenChamberHalfW: number;
@@ -119,7 +120,7 @@ export interface GameState {
 
     // Grids
     map: CellType[];
-    fog: Float32Array | null;
+    fog: Float32Array;
 
     // Nest anchor
     nestCol: number;
@@ -127,7 +128,7 @@ export interface GameState {
 
     // Cached references
     queen: QueenAnt | null;
-    foodCells: Set<number>;
+    foodCells: FoodSpatialIndex;
 
     // Goals / flight
     flightStarted: boolean;
@@ -168,7 +169,7 @@ export const STATE: GameState = {
 
     // Colony
     food: 0,
-    foodGrid: null,
+    foodGrid: new Float32Array(CONFIG.COLS * CONFIG.ROWS),
     chambers: 0,
     chamberPositions: [],
     queenChamberHalfW: CONFIG.QUEEN_CHAMBER_HALF_W_INIT,
@@ -181,7 +182,7 @@ export const STATE: GameState = {
 
     // Grids
     map: [],
-    fog: null,
+    fog: new Float32Array(CONFIG.COLS * CONFIG.ROWS),
 
     // Nest anchor
     nestCol: 0,
@@ -206,7 +207,7 @@ export const STATE: GameState = {
 
     // Cached references
     queen: null,
-    foodCells: new Set(),
+    foodCells: new FoodSpatialIndex(),
 
     reset() {
         this.running = false;
@@ -231,7 +232,7 @@ export const STATE: GameState = {
         this.foodGrid = new Float32Array(size);
         this.fog = new Float32Array(size);
         this.queen = null;
-        this.foodCells = new Set();
+        this.foodCells = new FoodSpatialIndex();
         this.flightStarted = false;
         this.flightTotal = 0;
         this.flightEscaped = 0;

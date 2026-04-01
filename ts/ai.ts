@@ -8,8 +8,10 @@ export function aiDecideAndOrder(): void {
     const pop = STATE.ants.length + pending;
     const cap = STATE.popCap();
 
-    // Nurses: less than chambers - 1
-    if (STATE.canSpawnNurse && STATE.food >= CONFIG.COST_NURSE && pop < cap) {
+    // Nurses: less than chambers
+    const nurseTarget = Math.min(STATE.chambers - 1, 16);
+    const nurseCount = STATE.ants.filter(a => a.type === 'nurse').length + pending;
+    if (nurseCount < nurseTarget && STATE.food >= CONFIG.COST_NURSE && pop < cap) {
         ColonyModule.orderAnt('nurse');
         return;
     }

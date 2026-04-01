@@ -56,6 +56,9 @@ function Header() {
             <h1>{t('title')}</h1>
             <span id="difficulty-badge">{DIFFICULTIES.find(d => d.key === store.difficulty)?.icon} {t(`diff_${store.difficulty}` as any)}</span>
             <button id="lang-btn" title="Language">EN</button>
+            <nav id="header-nav">
+                <a href="mobile.html">Mobile</a>
+            </nav>
             <a id="github-link" href="https://github.com/gray0072/ants" target="_blank" rel="noopener noreferrer" title="View on GitHub">
                 <svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="currentColor">
                     <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
@@ -310,8 +313,7 @@ function Hud() {
                     </div>
                     <Show when={store.completedFlights > 0}>
                         <div id="flight-stars">
-                            {'★'.repeat(Math.min(Math.floor(store.completedFlights / 10), 20))}
-                            {'★'.repeat(Math.min(store.completedFlights % 10, 9))}
+                            {'★'.repeat(store.completedFlights)}
                         </div>
                     </Show>
                 </div>
@@ -358,19 +360,19 @@ export default function App() {
                 </div>
                 <div id="hud-col">
                     <Hud />
-                     <Show when={!store.showBench}>
-                         <div id="hud-perf">
-                             <div class="hud-perf-items">
-                                 <span class="perf-item">upd {store.perfUpdate.toFixed(1)} ms</span>
-                                 <span class="perf-item">rnd {store.perfRender.toFixed(1)} ms</span>
-                                 <span class="perf-item">~{(store.perfUpdate + store.perfRender) > 0.5 ? Math.round(1000 / (store.perfUpdate + store.perfRender)) : '—'} fps</span>
-                             </div>
-                             <div class="hud-perf-buttons">
-                                 <button class="btn bench-open-btn" onClick={toggleBench}><span class="hotkey">B</span> Bench</button>
-                                 <button classList={{ 'btn': true, 'ai-btn': true, 'btn-auto': store.autoAI, 'bench-open-btn': true }} onClick={toggleAI}><span class="hotkey">I</span> AI <span class="spawn-auto">⟳</span></button>
-                             </div>
-                         </div>
-                     </Show>
+                    <Show when={!store.showBench}>
+                        <div id="hud-perf">
+                            <div class="hud-perf-items">
+                                <span class="perf-item">upd {store.perfUpdate.toFixed(1)} ms</span>
+                                <span class="perf-item">rnd {store.perfRender.toFixed(1)} ms</span>
+                                <span class="perf-item">~{(store.perfUpdate + store.perfRender) > 0.5 ? Math.round(1000 / (store.perfUpdate + store.perfRender)) : '—'} fps</span>
+                            </div>
+                            <div class="hud-perf-buttons">
+                                <button class="btn bench-open-btn" onClick={toggleBench}><span class="hotkey">B</span> Bench</button>
+                                <button classList={{ 'btn': true, 'ai-btn': true, 'btn-auto': store.autoAI, 'bench-open-btn': true }} onClick={toggleAI}><span class="hotkey">I</span> AI <span class="spawn-auto">⟳</span></button>
+                            </div>
+                        </div>
+                    </Show>
                 </div>
             </div>
         </>

@@ -34,7 +34,7 @@ function canSpawnPrincess(): boolean {
 function canSpawnNurse(): boolean {
     const nurseCount = STATE.ants.filter(a => a.type === 'nurse').length
         + (STATE.queen?.eggQueue ?? []).filter(o => o === 'nurse').length;
-    return nurseCount < STATE.chamberPositions.length - 1;
+    return nurseCount < STATE.chambers - 1;
 }
 
 function setAntsCount(type: AntType, toAmount: number): void {
@@ -73,6 +73,7 @@ function getChamberSlot(n: number): { cc: number; cr: number; floorRow: number }
 
 export const ColonyModule = {
     init(): void {
+        _autoSpawnTurn = 0;
         STATE.ants.length = 0;
         STATE.chamberPositions.length = 0;
         // Place queen
@@ -95,7 +96,7 @@ export const ColonyModule = {
         setAntsCount('worker', 300);
         setAntsCount('soldier', 100);
         setAntsCount('scout', 10);
-        setAntsCount('nurse', STATE.chamberPositions.length - 1);
+        setAntsCount('nurse', STATE.chambers - 1);
         setAntsCount('princess', CONFIG.PRINCESS_LIMIT);
         STATE.wave = 80;
         STATE.autoAI = false;

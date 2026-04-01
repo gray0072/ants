@@ -24,7 +24,10 @@ const GameMain = (() => {
         const delta = Math.min(timestamp - lastTime, 100);
         lastTime = timestamp;
         accumulator += delta * speedMult;
-        if (accumulator > FIXED_STEP * 16) accumulator = FIXED_STEP * 16;
+        // Cap accumulator to prevent spiral of death after long pauses
+        const maxStepsPerFrame = speedMult + 10;
+        const maxFrameTime = FIXED_STEP * maxStepsPerFrame;
+        if (accumulator > maxFrameTime) accumulator = maxFrameTime;
 
         const t0 = performance.now();
         while (accumulator >= FIXED_STEP) {
